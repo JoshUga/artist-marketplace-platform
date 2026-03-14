@@ -8,12 +8,18 @@ import router from '../utils/router.js';
 export function renderLoginPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="auth-page">
-      <div class="auth-card card animate-scale-in">
-        <div class="card-body" style="padding: var(--spacing-xl);">
-          <h1 style="text-align: center; margin-bottom: var(--spacing-lg);">
-            <i class="bi bi-box-arrow-in-right"></i> Login
-          </h1>
+    <section class="auth-shell">
+      <div class="auth-shell__panel auth-shell__panel--accent animate-fade-in">
+        <p class="auth-shell__kicker">Welcome Back</p>
+        <h2 class="auth-shell__title">Manage your artist portfolio</h2>
+        <p class="auth-shell__text">Access your studio dashboard, add new work, and control how your collectors experience your catalog.</p>
+      </div>
+      <div class="auth-shell__panel">
+        <div class="auth-card card animate-scale-in">
+          <div class="card__body auth-card__body">
+            <h1 class="auth-card__heading">
+              <i class="bi bi-box-arrow-in-right"></i> Login
+            </h1>
           <form id="login-form">
             <div class="form-group">
               <label for="email" class="form-label">Email</label>
@@ -27,16 +33,16 @@ export function renderLoginPage() {
               <input type="checkbox" id="remember" class="form-checkbox">
               <label for="remember">Remember me</label>
             </div>
-            <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+            <button type="submit" class="btn btn--primary btn--block" id="login-btn">
               <i class="bi bi-box-arrow-in-right"></i> Login
             </button>
           </form>
-          <div style="text-align: center; margin-top: var(--spacing-md);">
+          <div class="auth-card__footer">
             <p>Don't have an account? <a href="/register" data-link>Register here</a></p>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   `;
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {

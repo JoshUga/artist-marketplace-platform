@@ -12,7 +12,7 @@ export async function login(email, password) {
   return data;
 }
 
-export async function register(email, password, fullName, role = 'buyer') {
+export async function register(email, password, fullName, role = 'artist') {
   return api.post('/auth/register', { email, password, full_name: fullName, role });
 }
 

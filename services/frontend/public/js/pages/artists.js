@@ -8,10 +8,10 @@ export async function renderArtistsPage() {
   const app = document.getElementById('app');
   app.innerHTML = `
     <section class="container" style="padding: var(--spacing-2xl) var(--spacing-md);">
-      <h1 class="section-title animate-fade-in">
+      <h1 class="animate-fade-in" style="margin-bottom: var(--spacing-lg);">
         <i class="bi bi-brush"></i> Discover Artists
       </h1>
-      <div class="grid grid-cols-3" id="artists-grid"></div>
+      <div class="grid grid--3" id="artists-grid"></div>
     </section>
   `;
 

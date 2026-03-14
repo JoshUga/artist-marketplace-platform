@@ -8,7 +8,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     password: str
     full_name: str
-    role: str = "buyer"
+    role: str = "artist"
 
     @field_validator("password")
     @classmethod

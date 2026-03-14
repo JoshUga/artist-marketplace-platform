@@ -58,7 +58,7 @@ function setupRoutes() {
             <i class="bi bi-question-circle"></i>
             <h1>404 - Page Not Found</h1>
             <p>The page you're looking for doesn't exist.</p>
-            <a href="/" class="btn btn-primary" data-link>Go Home</a>
+            <a href="/" class="btn btn--primary" data-link>Go Home</a>
           </div>
         </div>
       `;

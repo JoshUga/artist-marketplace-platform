@@ -1,9 +1,7 @@
 /**
  * API client for communicating with backend microservices.
  */
-const API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:80/api'
-  : '/api';
+const API_BASE = '/api';
 
 class ApiClient {
   constructor(baseUrl) {

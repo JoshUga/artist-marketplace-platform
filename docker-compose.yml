@@ -114,6 +114,7 @@ services:
       - "3000:80"
     volumes:
       - ./services/frontend/public:/usr/share/nginx/html:ro
+      - ./services/frontend/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - marketplace-net
     restart: unless-stopped

@@ -7,24 +7,24 @@
 /* ===== CSS Custom Properties ===== */
 :root {
   /* Colors — Primary */
-  --primary-color: #3B82F6;
-  --primary-color-light: #93C5FD;
-  --primary-color-dark: #1D4ED8;
+  --primary-color: #3F5B4B;
+  --primary-color-light: #A6BEAF;
+  --primary-color-dark: #24392D;
 
   /* Colors — Secondary */
-  --secondary-color: #10B981;
-  --secondary-color-light: #6EE7B7;
-  --secondary-color-dark: #059669;
+  --secondary-color: #A56A3A;
+  --secondary-color-light: #D9B292;
+  --secondary-color-dark: #744625;
 
   /* Colors — Accent & Semantic */
-  --accent-color: #F59E0B;
-  --accent-color-light: #FCD34D;
-  --danger-color: #EF4444;
-  --danger-color-light: #FCA5A5;
-  --danger-color-dark: #B91C1C;
-  --warning-color: #F59E0B;
+  --accent-color: #C08A4D;
+  --accent-color-light: #E3BC8F;
+  --danger-color: #B64B4B;
+  --danger-color-light: #E2A2A2;
+  --danger-color-dark: #7D2E2E;
+  --warning-color: #C08A4D;
   --success-color: #10B981;
-  --info-color: #3B82F6;
+  --info-color: #3F5B4B;
 
   /* Colors — Neutrals */
   --text-color: #333333;
@@ -38,18 +38,18 @@
   --overlay-color: rgba(0, 0, 0, 0.5);
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+  --font-sans: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
   --font-mono: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas,
     monospace;
 
-  --font-size-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
-  --font-size-sm: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
-  --font-size-base: clamp(1rem, 0.9rem + 0.5vw, 1.125rem);
-  --font-size-lg: clamp(1.125rem, 1rem + 0.625vw, 1.25rem);
-  --font-size-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
-  --font-size-2xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
-  --font-size-3xl: clamp(2rem, 1.5rem + 2.5vw, 3rem);
+  --font-size-xs: clamp(0.72rem, 0.69rem + 0.15vw, 0.82rem);
+  --font-size-sm: clamp(0.82rem, 0.78rem + 0.22vw, 0.92rem);
+  --font-size-base: clamp(0.92rem, 0.88rem + 0.26vw, 1rem);
+  --font-size-lg: clamp(1rem, 0.95rem + 0.34vw, 1.08rem);
+  --font-size-xl: clamp(1.1rem, 1.02rem + 0.45vw, 1.25rem);
+  --font-size-2xl: clamp(1.3rem, 1.12rem + 0.85vw, 1.55rem);
+  --font-size-3xl: clamp(1.65rem, 1.3rem + 1.3vw, 2.1rem);
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -87,7 +87,7 @@
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
   --shadow-inner: inset 0 2px 4px rgba(0, 0, 0, 0.06);
-  --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(63, 91, 75, 0.35);
 
   /* Transitions */
   --transition-fast: 0.15s ease;
@@ -2314,6 +2314,82 @@ body.route-home .hero {
     flex-wrap: wrap;
     justify-content: center;
   }
+}
+
+/* ===== Authentication ===== */
+.auth-shell {
+  width: min(1100px, 100% - 2 * var(--spacing-md));
+  margin: var(--spacing-xl) auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-md);
+}
+
+@media (min-width: 960px) {
+  .auth-shell {
+    grid-template-columns: 1.05fr 1fr;
+    gap: var(--spacing-xl);
+    align-items: stretch;
+  }
+}
+
+.auth-shell__panel {
+  border-radius: var(--border-radius-xl);
+}
+
+.auth-shell__panel--accent {
+  position: relative;
+  overflow: hidden;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.22), transparent 35%),
+    radial-gradient(circle at 80% 78%, rgba(192, 138, 77, 0.25), transparent 42%),
+    linear-gradient(145deg, #2B3F34 0%, #3F5B4B 45%, #8A5A35 100%);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-shell__kicker {
+  margin-bottom: var(--spacing-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: var(--font-size-xs);
+  opacity: 0.9;
+}
+
+.auth-shell__title {
+  font-size: var(--font-size-2xl);
+  margin-bottom: var(--spacing-md);
+  color: #FFFFFF;
+}
+
+.auth-shell__text {
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 44ch;
+}
+
+.auth-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-xl);
+  box-shadow: 0 20px 35px rgba(26, 37, 30, 0.08);
+}
+
+.auth-card__body {
+  padding: clamp(1.1rem, 2vw, 1.9rem);
+}
+
+.auth-card__heading {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-xl);
+}
+
+.auth-card__footer {
+  text-align: center;
+  margin-top: var(--spacing-md);
+  font-size: var(--font-size-sm);
 }
 
 .w-full   { width: 100%; }
