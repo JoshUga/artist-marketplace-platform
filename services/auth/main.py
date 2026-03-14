@@ -49,7 +49,7 @@ app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(RequestTimingMiddleware)
 
 
-async def get_db(app_instance=None):
+async def get_db():
     async with app.state.session_factory() as session:
         try:
             yield session
@@ -59,7 +59,7 @@ async def get_db(app_instance=None):
             raise
 
 # Override the dependency
-routes.get_session_dependency = get_db
+app.dependency_overrides[routes.get_db] = get_db
 app.include_router(routes.router)
 app.include_router(create_health_router("auth-service"))
 

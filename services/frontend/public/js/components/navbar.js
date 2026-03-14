@@ -31,24 +31,24 @@ export function createNavbar() {
     </div>
   `;
 
-  updateAuthLinks();
+  // Set auth links directly on the element before it's in the DOM
+  const authContainer = nav.querySelector('#auth-nav-links');
+  setAuthLinksContent(authContainer);
   window.addEventListener('auth-changed', updateAuthLinks);
 
   return nav;
 }
 
-function updateAuthLinks() {
-  const container = document.getElementById('auth-nav-links');
+function setAuthLinksContent(container) {
   if (!container) return;
 
   const isAuth = !!localStorage.getItem('access_token');
   if (isAuth) {
-    const user = store.get('user');
     container.innerHTML = `
       <a href="/admin" class="nav-link" data-link><i class="bi bi-speedometer"></i> Dashboard</a>
       <a href="#" class="nav-link" id="logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
     `;
-    const logoutLink = document.getElementById('logout-link');
+    const logoutLink = container.querySelector('#logout-link');
     if (logoutLink) {
       logoutLink.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -63,6 +63,11 @@ function updateAuthLinks() {
       <a href="/register" class="nav-link btn btn-primary btn-sm" data-link><i class="bi bi-person-plus"></i> Register</a>
     `;
   }
+}
+
+function updateAuthLinks() {
+  const container = document.getElementById('auth-nav-links');
+  setAuthLinksContent(container);
 }
 
 export function setupNavEvents() {

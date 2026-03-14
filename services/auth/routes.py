@@ -24,13 +24,13 @@ from services.auth.schemas import (
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-def get_session_dependency():
-    """This will be overridden when the app is created."""
-    pass
+async def get_db():
+    """Database session dependency - overridden at app startup."""
+    raise NotImplementedError("Database session not configured")
 
 
 @router.post("/register", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: AsyncSession = Depends(get_session_dependency)):
+async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
     # Check if user exists
     result = await db.execute(select(User).where(User.email == user_data.email))
     existing_user = result.scalar_one_or_none()
@@ -59,7 +59,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_sessi
 
 
 @router.post("/login", response_model=APIResponse)
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_session_dependency)):
+async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == credentials.email))
     user = result.scalar_one_or_none()
 
@@ -124,7 +124,7 @@ async def logout(current_user: dict = Depends(get_current_user)):
 @router.get("/me", response_model=APIResponse)
 async def get_me(
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.id == current_user["sub"]))
     user = result.scalar_one_or_none()
@@ -140,7 +140,7 @@ async def get_me(
 @router.get("/users/{user_id}/profile", response_model=APIResponse)
 async def get_user_profile(
     user_id: str,
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

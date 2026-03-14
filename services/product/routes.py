@@ -16,8 +16,9 @@ from services.product.schemas import (
 router = APIRouter(tags=["Products"])
 
 
-def get_session_dependency():
-    pass
+async def get_db():
+    """Database session dependency - overridden at app startup."""
+    raise NotImplementedError("Database session not configured")
 
 
 # Product routes
@@ -25,7 +26,7 @@ def get_session_dependency():
 async def create_product(
     product_data: ProductCreate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     product = Product(
         artist_id=current_user["sub"],
@@ -51,7 +52,7 @@ async def list_products(
     sort_order: str = Query("desc", pattern="^(asc|desc)$"),
     min_price: float = Query(None, ge=0),
     max_price: float = Query(None, ge=0),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * per_page
     query = select(Product).where(Product.status == ProductStatus.PUBLISHED)
@@ -87,7 +88,7 @@ async def list_products(
 
 
 @router.get("/products/{product_id}", response_model=APIResponse)
-async def get_product(product_id: str, db: AsyncSession = Depends(get_session_dependency)):
+async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
     if not product:
@@ -108,7 +109,7 @@ async def update_product(
     product_id: str,
     update_data: ProductUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
@@ -137,7 +138,7 @@ async def update_product(
 async def delete_product(
     product_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Product).where(Product.id == product_id))
     product = result.scalar_one_or_none()
@@ -156,7 +157,7 @@ async def delete_product(
 
 # Category routes
 @router.get("/categories", response_model=APIResponse)
-async def list_categories(db: AsyncSession = Depends(get_session_dependency)):
+async def list_categories(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Category).order_by(Category.name))
     categories = result.scalars().all()
     return APIResponse(
@@ -169,7 +170,7 @@ async def list_categories(db: AsyncSession = Depends(get_session_dependency)):
 async def create_category(
     category_data: CategoryCreate,
     current_user: dict = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     category = Category(**category_data.model_dump())
     db.add(category)
@@ -187,7 +188,7 @@ async def create_category(
 async def delete_category(
     category_id: str,
     current_user: dict = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Category).where(Category.id == category_id))
     category = result.scalar_one_or_none()

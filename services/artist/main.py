@@ -57,7 +57,7 @@ async def get_db():
             raise
 
 
-routes.get_session_dependency = get_db
+app.dependency_overrides[routes.get_db] = get_db
 app.include_router(routes.router)
 app.include_router(create_health_router("artist-service"))
 

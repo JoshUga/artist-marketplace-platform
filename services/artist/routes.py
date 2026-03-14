@@ -17,15 +17,16 @@ from services.artist.schemas import (
 router = APIRouter(prefix="/artists", tags=["Artists"])
 
 
-def get_session_dependency():
-    pass
+async def get_db():
+    """Database session dependency - overridden at app startup."""
+    raise NotImplementedError("Database session not configured")
 
 
 @router.post("/register", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
 async def register_artist(
     artist_data: ArtistCreate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     # Check if already registered as artist
     result = await db.execute(select(Artist).where(Artist.user_id == current_user["sub"]))
@@ -51,7 +52,7 @@ async def register_artist(
 async def list_artists(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * per_page
 
@@ -81,7 +82,7 @@ async def list_artists(
 
 
 @router.get("/{artist_id}", response_model=APIResponse)
-async def get_artist(artist_id: str, db: AsyncSession = Depends(get_session_dependency)):
+async def get_artist(artist_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
     if not artist:
@@ -98,7 +99,7 @@ async def update_artist_profile(
     artist_id: str,
     update_data: ArtistUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -128,7 +129,7 @@ async def add_portfolio_item(
     artist_id: str,
     item_data: PortfolioItemCreate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -155,7 +156,7 @@ async def get_portfolio(
     artist_id: str,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     offset = (page - 1) * per_page
 
@@ -188,7 +189,7 @@ async def update_portfolio_item(
     item_id: str,
     update_data: PortfolioItemUpdate,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -220,7 +221,7 @@ async def delete_portfolio_item(
     artist_id: str,
     item_id: str,
     current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -243,7 +244,7 @@ async def delete_portfolio_item(
 async def verify_artist(
     artist_id: str,
     current_user: dict = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
@@ -260,7 +261,7 @@ async def verify_artist(
 async def suspend_artist(
     artist_id: str,
     current_user: dict = Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_session_dependency),
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
     artist = result.scalar_one_or_none()
