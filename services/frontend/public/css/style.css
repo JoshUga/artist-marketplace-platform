@@ -2267,6 +2267,55 @@ p:last-child {
   overflow: hidden;
 }
 
+/* ===== Route-specific Layouts ===== */
+body.route-home {
+  overflow: hidden;
+}
+
+body.route-home #app {
+  min-height: calc(100vh - var(--navbar-height));
+  min-height: calc(100dvh - var(--navbar-height));
+  display: flex;
+}
+
+body.route-home .footer {
+  display: none;
+}
+
+body.route-home .hero {
+  flex: 1;
+  min-height: calc(100vh - var(--navbar-height));
+  min-height: calc(100dvh - var(--navbar-height));
+  padding-block: var(--spacing-xl);
+}
+
+.hero__cta-secondary {
+  border-color: rgba(255, 255, 255, 0.8);
+  color: #FFFFFF;
+}
+
+.hero__cta-secondary:hover {
+  border-color: #FFFFFF;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+}
+
+.hero__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xl);
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .hero__meta {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
 .w-full   { width: 100%; }
 .h-full   { height: 100%; }
 .relative { position: relative; }

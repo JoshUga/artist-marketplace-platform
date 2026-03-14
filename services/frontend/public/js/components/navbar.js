@@ -8,77 +8,82 @@ export function createNavbar() {
   const nav = document.createElement('nav');
   nav.className = 'navbar';
   nav.innerHTML = `
-    <div class="navbar-container container">
-      <a href="/" class="navbar-brand" data-link>
+    <div class="navbar__inner container">
+      <a href="/" class="navbar__brand" data-link>
         <i class="bi bi-palette"></i>
         <span>ArtMarket</span>
       </a>
-      <div class="navbar-search">
-        <i class="bi bi-search"></i>
-        <input type="text" placeholder="Search artwork..." class="search-input" id="global-search">
+      <div class="navbar__links" id="nav-links-desktop">
+        <a href="/" class="navbar__link" data-link><i class="bi bi-house"></i> Home</a>
+        <a href="/artists" class="navbar__link" data-link><i class="bi bi-brush"></i> Artists</a>
+        <div id="auth-nav-links-desktop"></div>
       </div>
-      <div class="navbar-links" id="nav-links">
-        <a href="/" class="nav-link" data-link><i class="bi bi-house"></i> Home</a>
-        <a href="/artists" class="nav-link" data-link><i class="bi bi-brush"></i> Artists</a>
-        <div id="auth-nav-links"></div>
+      <div class="navbar__actions">
+        <button class="btn btn--icon btn--ghost" id="theme-toggle" aria-label="Toggle theme">
+          <i class="bi bi-moon"></i>
+        </button>
+        <button class="navbar__toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false">
+          <span class="navbar__hamburger" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+        </button>
       </div>
-      <button class="navbar-toggle" id="nav-toggle" aria-label="Toggle menu">
-        <i class="bi bi-list"></i>
-      </button>
-      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-        <i class="bi bi-moon"></i>
-      </button>
+    </div>
+    <div class="navbar__mobile-menu" id="nav-links-mobile">
+      <a href="/" class="navbar__link" data-link><i class="bi bi-house"></i> Home</a>
+      <a href="/artists" class="navbar__link" data-link><i class="bi bi-brush"></i> Artists</a>
+      <div id="auth-nav-links-mobile"></div>
     </div>
   `;
 
-  // Set auth links directly on the element before it's in the DOM
-  const authContainer = nav.querySelector('#auth-nav-links');
-  setAuthLinksContent(authContainer);
+  setAuthLinksContent(
+    nav.querySelector('#auth-nav-links-desktop'),
+    nav.querySelector('#auth-nav-links-mobile')
+  );
   window.addEventListener('auth-changed', updateAuthLinks);
 
   return nav;
 }
 
-function setAuthLinksContent(container) {
-  if (!container) return;
-
-  const isAuth = !!localStorage.getItem('access_token');
+function renderAuthLinks(isAuth) {
   if (isAuth) {
-    container.innerHTML = `
-      <a href="/admin" class="nav-link" data-link><i class="bi bi-speedometer"></i> Dashboard</a>
-      <a href="#" class="nav-link" id="logout-link"><i class="bi bi-box-arrow-right"></i> Logout</a>
-    `;
-    const logoutLink = container.querySelector('#logout-link');
-    if (logoutLink) {
-      logoutLink.addEventListener('click', async (e) => {
-        e.preventDefault();
-        const { logout } = await import('../services/auth.js');
-        await logout();
-        router.navigate('/');
-      });
-    }
-  } else {
-    container.innerHTML = `
-      <a href="/login" class="nav-link" data-link><i class="bi bi-box-arrow-in-right"></i> Login</a>
-      <a href="/register" class="nav-link btn btn-primary btn-sm" data-link><i class="bi bi-person-plus"></i> Register</a>
+    return `
+      <a href="/admin" class="navbar__link" data-link><i class="bi bi-speedometer"></i> Dashboard</a>
+      <a href="#" class="navbar__link" data-logout><i class="bi bi-box-arrow-right"></i> Logout</a>
     `;
   }
+
+  return `
+    <a href="/login" class="navbar__link" data-link><i class="bi bi-box-arrow-in-right"></i> Login</a>
+    <a href="/register" class="navbar__link" data-link><i class="bi bi-person-plus"></i> Register</a>
+  `;
+}
+
+function setAuthLinksContent(desktopContainer, mobileContainer) {
+  if (!desktopContainer || !mobileContainer) return;
+
+  const isAuth = !!localStorage.getItem('access_token');
+
+  const markup = renderAuthLinks(isAuth);
+  desktopContainer.innerHTML = markup;
+  mobileContainer.innerHTML = markup;
 }
 
 function updateAuthLinks() {
-  const container = document.getElementById('auth-nav-links');
-  setAuthLinksContent(container);
+  setAuthLinksContent(
+    document.getElementById('auth-nav-links-desktop'),
+    document.getElementById('auth-nav-links-mobile')
+  );
 }
 
 export function setupNavEvents() {
   // Hamburger toggle
   const toggle = document.getElementById('nav-toggle');
-  const links = document.getElementById('nav-links');
-  if (toggle && links) {
+  const mobileMenu = document.getElementById('nav-links-mobile');
+  if (toggle && mobileMenu) {
     toggle.addEventListener('click', () => {
-      links.classList.toggle('active');
-      const icon = toggle.querySelector('i');
-      icon.className = links.classList.contains('active') ? 'bi bi-x' : 'bi bi-list';
+      mobileMenu.classList.toggle('is-open');
+      toggle.setAttribute('aria-expanded', mobileMenu.classList.contains('is-open') ? 'true' : 'false');
     });
   }
 
@@ -97,6 +102,17 @@ export function setupNavEvents() {
 
   // Link navigation - delegate click handling
   document.addEventListener('click', (e) => {
+    const logoutLink = e.target.closest('[data-logout]');
+    if (logoutLink) {
+      e.preventDefault();
+      import('../services/auth.js')
+        .then(async ({ logout }) => {
+          await logout();
+          router.navigate('/');
+        });
+      return;
+    }
+
     const link = e.target.closest('[data-link]');
     if (link) {
       e.preventDefault();
@@ -104,8 +120,9 @@ export function setupNavEvents() {
       if (href) {
         router.navigate(href);
         // Close mobile menu
-        const navLinks = document.getElementById('nav-links');
-        if (navLinks) navLinks.classList.remove('active');
+        const navLinks = document.getElementById('nav-links-mobile');
+        if (navLinks) navLinks.classList.remove('is-open');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
       }
     }
   });

@@ -25,6 +25,8 @@ class Router {
 
   _resolve() {
     const currentPath = window.location.pathname;
+    document.body.classList.toggle('route-home', currentPath === '/');
+
     for (const route of this.routes) {
       const params = this._matchRoute(route.path, currentPath);
       if (params !== null) {
