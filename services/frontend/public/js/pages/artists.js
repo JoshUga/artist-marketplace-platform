@@ -40,8 +40,8 @@ export async function renderArtistsPage() {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <i class="bi bi-people"></i>
-        <h3>Artists Directory</h3>
-        <p>Connect the backend to browse artists.</p>
+        <h3>Unable to load artists right now</h3>
+        <p>Please try again in a moment. If this continues, refresh the page.</p>
       </div>
     `;
   }

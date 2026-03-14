@@ -25,7 +25,14 @@ class Router {
 
   _resolve() {
     const currentPath = window.location.pathname;
-    document.body.classList.toggle('route-home', currentPath === '/');
+    const isHomeRoute = currentPath === '/';
+    const isAuthRoute = currentPath === '/login' || currentPath === '/register';
+    const isDashboardRoute = currentPath === '/admin';
+
+    document.body.classList.toggle('route-home', isHomeRoute);
+    document.body.classList.toggle('route-auth', isAuthRoute);
+    document.body.classList.toggle('route-dashboard', isDashboardRoute);
+    document.body.classList.toggle('route-immersive', isHomeRoute || isAuthRoute || isDashboardRoute);
 
     for (const route of this.routes) {
       const params = this._matchRoute(route.path, currentPath);
