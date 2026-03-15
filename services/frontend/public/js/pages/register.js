@@ -63,41 +63,22 @@ export function renderRegisterPage() {
           <span>ArtMarket</span>
         </a>
         <div class="auth-card card">
-          <div class="card__body auth-card__body">
+          <div class="card__body auth-card__body auth-card__body--register">
             <p class="auth-card__eyebrow">Artist Onboarding</p>
-            <h1 class="auth-card__heading">Create your artist account</h1>
-            <p class="auth-card__subtext">Complete a short three-step setup, then enter the dashboard already signed in and ready to publish.</p>
+            <h1 class="auth-card__heading auth-card__heading--register">Create your artist account</h1>
 
-            <div class="auth-stepper" aria-label="Registration progress">
-              <div class="auth-step auth-step--active" data-step-indicator="1">
-                <span class="auth-step__index">1</span>
-                <div class="auth-step__copy">
-                  <strong>Identity</strong>
-                  <span>Name your account and studio</span>
-                </div>
+            <div class="auth-progress" aria-label="Registration progress">
+              <div class="auth-progress__meta">
+                <span id="register-step-copy">Step 1 of 3: Identity</span>
+                <span id="register-step-count">1/3</span>
               </div>
-              <div class="auth-step" data-step-indicator="2">
-                <span class="auth-step__index">2</span>
-                <div class="auth-step__copy">
-                  <strong>Access</strong>
-                  <span>Secure your login</span>
-                </div>
-              </div>
-              <div class="auth-step" data-step-indicator="3">
-                <span class="auth-step__index">3</span>
-                <div class="auth-step__copy">
-                  <strong>Profile</strong>
-                  <span>Add studio details and review</span>
-                </div>
+              <div class="auth-progress__track" aria-hidden="true">
+                <span class="auth-progress__fill" id="register-progress-fill"></span>
               </div>
             </div>
 
             <form id="register-form" class="auth-card__form">
               <div class="auth-step-panel auth-step-panel--active" data-step-panel="1">
-                <p class="auth-step-panel__eyebrow">Step 1 of 3</p>
-                <h2 class="auth-step-panel__title">Set up your identity</h2>
-                <p class="auth-step-panel__text">Choose the name buyers will recognize and the name attached to your account.</p>
-
                 <div class="form-group">
                   <label for="full-name" class="form-label">Full Name</label>
                   <input type="text" id="full-name" class="form-input" placeholder="Your full name" required>
@@ -116,10 +97,6 @@ export function renderRegisterPage() {
               </div>
 
               <div class="auth-step-panel" data-step-panel="2" hidden>
-                <p class="auth-step-panel__eyebrow">Step 2 of 3</p>
-                <h2 class="auth-step-panel__title">Create your login</h2>
-                <p class="auth-step-panel__text">Use the email you want attached to inquiries, releases, and dashboard access.</p>
-
                 <div class="form-group">
                   <label for="email" class="form-label">Email</label>
                   <input type="email" id="email" class="form-input" placeholder="your@email.com" required>
@@ -151,10 +128,6 @@ export function renderRegisterPage() {
               </div>
 
               <div class="auth-step-panel" data-step-panel="3" hidden>
-                <p class="auth-step-panel__eyebrow">Step 3 of 3</p>
-                <h2 class="auth-step-panel__title">Finish your profile</h2>
-                <p class="auth-step-panel__text">Optional studio details help shape your public profile from the first session.</p>
-
                 <div class="form-group">
                   <label for="artist-bio" class="form-label">Short Bio</label>
                   <textarea id="artist-bio" class="form-textarea" placeholder="Tell buyers about your style, process, and focus."></textarea>
@@ -173,27 +146,6 @@ export function renderRegisterPage() {
                     <input type="text" id="artist-twitter" class="form-input" placeholder="username">
                   </div>
                 </div>
-
-                <section class="auth-review" aria-live="polite">
-                  <div class="auth-review__header">
-                    <h3>Review</h3>
-                    <span>Submitted in one step after profile creation</span>
-                  </div>
-                  <dl class="auth-review__list">
-                    <div>
-                      <dt>Account Name</dt>
-                      <dd id="register-review-full-name">-</dd>
-                    </div>
-                    <div>
-                      <dt>Artist Name</dt>
-                      <dd id="register-review-artist-name">-</dd>
-                    </div>
-                    <div>
-                      <dt>Email</dt>
-                      <dd id="register-review-email">-</dd>
-                    </div>
-                  </dl>
-                </section>
 
                 <div class="auth-step-panel__actions">
                   <button type="button" class="btn btn--ghost" data-prev-step>
@@ -222,13 +174,11 @@ export function renderRegisterPage() {
   const prevButtons = Array.from(document.querySelectorAll('[data-prev-step]'));
   const passwordInput = document.getElementById('password');
   const confirmPasswordInput = document.getElementById('confirm-password');
+  const progressFill = document.getElementById('register-progress-fill');
+  const stepCopy = document.getElementById('register-step-copy');
+  const stepCount = document.getElementById('register-step-count');
+  const stepLabels = ['Identity', 'Access', 'Profile'];
   let currentStep = 1;
-
-  function updateReview() {
-    document.getElementById('register-review-full-name').textContent = document.getElementById('full-name').value.trim() || '-';
-    document.getElementById('register-review-artist-name').textContent = document.getElementById('artist-name').value.trim() || '-';
-    document.getElementById('register-review-email').textContent = document.getElementById('email').value.trim() || '-';
-  }
 
   function setStep(step) {
     currentStep = step;
@@ -244,9 +194,9 @@ export function renderRegisterPage() {
       indicator.classList.toggle('auth-step--complete', indicatorStep < step);
     });
 
-    if (step === totalSteps) {
-      updateReview();
-    }
+    progressFill.style.width = `${(step / totalSteps) * 100}%`;
+    stepCopy.textContent = `Step ${step} of ${totalSteps}: ${stepLabels[step - 1]}`;
+    stepCount.textContent = `${step}/${totalSteps}`;
   }
 
   function validateStep(step) {

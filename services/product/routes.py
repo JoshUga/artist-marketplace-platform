@@ -107,6 +107,58 @@ async def list_products(
     )
 
 
+@router.get("/products/me/analytics", response_model=APIResponse)
+async def get_my_product_analytics(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    artist_id = current_user["sub"]
+
+    totals_result = await db.execute(
+        select(
+            func.count(Product.id),
+            func.coalesce(func.sum(Product.view_count), 0),
+            func.coalesce(func.sum(Product.likes_count), 0),
+            func.coalesce(func.sum(Product.review_count), 0),
+        ).where(Product.artist_id == artist_id)
+    )
+    product_count, total_views, total_likes, total_comments = totals_result.one()
+
+    top_result = await db.execute(
+        select(Product)
+        .where(Product.artist_id == artist_id)
+        .order_by(
+            Product.view_count.desc(),
+            Product.likes_count.desc(),
+            Product.review_count.desc(),
+            Product.created_at.desc(),
+        )
+        .limit(5)
+    )
+    top_products = top_result.scalars().all()
+
+    return APIResponse(
+        success=True,
+        data={
+            "product_count": int(product_count or 0),
+            "total_views": int(total_views or 0),
+            "total_likes": int(total_likes or 0),
+            "total_comments": int(total_comments or 0),
+            "top_products": [
+                {
+                    "id": product.id,
+                    "title": product.title,
+                    "view_count": product.view_count,
+                    "likes_count": product.likes_count,
+                    "review_count": product.review_count,
+                    "status": product.status.value,
+                }
+                for product in top_products
+            ],
+        },
+    )
+
+
 @router.get("/products/{product_id}", response_model=APIResponse)
 async def get_product(product_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Product).where(Product.id == product_id))
@@ -351,49 +403,6 @@ async def get_product_share_page(
 </html>
 """
     return HTMLResponse(content=html)
-
-
-@router.get("/products/me/analytics", response_model=APIResponse)
-async def get_my_product_analytics(
-    current_user: dict = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Product).where(Product.artist_id == current_user["sub"]).order_by(Product.created_at.desc())
-    )
-    products = result.scalars().all()
-
-    total_views = sum((product.view_count or 0) for product in products)
-    total_likes = sum((product.likes_count or 0) for product in products)
-    total_comments = sum((product.review_count or 0) for product in products)
-
-    top_products = sorted(
-        products,
-        key=lambda product: (
-            (product.view_count or 0) + ((product.likes_count or 0) * 4) + ((product.review_count or 0) * 6)
-        ),
-        reverse=True,
-    )[:5]
-
-    return APIResponse(
-        success=True,
-        data={
-            "product_count": len(products),
-            "total_views": total_views,
-            "total_likes": total_likes,
-            "total_comments": total_comments,
-            "top_products": [
-                {
-                    "id": item.id,
-                    "title": item.title,
-                    "view_count": item.view_count,
-                    "likes_count": item.likes_count,
-                    "review_count": item.review_count,
-                }
-                for item in top_products
-            ],
-        },
-    )
 
 
 @router.put("/products/{product_id}", response_model=APIResponse)

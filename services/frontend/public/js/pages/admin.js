@@ -58,18 +58,18 @@ export function renderAdminPage() {
           <div class="workspace__stats">
             <article class="workspace__stat-card">
               <span>Portfolio Items</span>
-              <strong>24</strong>
-              <small>+4 this month</small>
+              <strong id="overview-portfolio-items">--</strong>
+              <small>Products published to your marketplace</small>
             </article>
             <article class="workspace__stat-card">
               <span>Profile Views</span>
-              <strong>1,842</strong>
-              <small>+11% week over week</small>
+              <strong id="overview-profile-views">--</strong>
+              <small>Total product page views</small>
             </article>
             <article class="workspace__stat-card">
               <span>Private Buyers</span>
-              <strong>63</strong>
-              <small>12 active conversations</small>
+              <strong id="overview-private-buyers">--</strong>
+              <small>Unique collectors who messaged you</small>
             </article>
           </div>
           <div class="workspace__cards-grid">
@@ -290,6 +290,9 @@ export function renderAdminPage() {
   const analyticsLikes = document.getElementById('analytics-likes');
   const analyticsComments = document.getElementById('analytics-comments');
   const analyticsTopProducts = document.getElementById('analytics-top-products');
+  const overviewPortfolioItems = document.getElementById('overview-portfolio-items');
+  const overviewProfileViews = document.getElementById('overview-profile-views');
+  const overviewPrivateBuyers = document.getElementById('overview-private-buyers');
   const richDescriptionEditor = document.getElementById('art-description-editor');
   const richDescriptionSource = document.getElementById('art-description-html');
   const richDescriptionButtons = Array.from(document.querySelectorAll('[data-rich-command]'));
@@ -715,8 +718,14 @@ export function renderAdminPage() {
       .join('');
   };
 
+  const renderOverviewStats = ({ portfolioItemsCount = 0, totalViews = 0, uniqueCollectors = 0 } = {}) => {
+    if (overviewPortfolioItems) overviewPortfolioItems.textContent = String(portfolioItemsCount);
+    if (overviewProfileViews) overviewProfileViews.textContent = String(totalViews);
+    if (overviewPrivateBuyers) overviewPrivateBuyers.textContent = String(uniqueCollectors);
+  };
+
   const renderAnalytics = async () => {
-    if (!analyticsViews || !analyticsLikes || !analyticsComments || !analyticsTopProducts) return;
+    if (!analyticsViews || !analyticsLikes || !analyticsComments || !analyticsTopProducts) return null;
 
     analyticsViews.textContent = '--';
     analyticsLikes.textContent = '--';
@@ -748,23 +757,27 @@ export function renderAdminPage() {
             </div>
           </article>
         `;
-        return;
+      } else {
+        analyticsTopProducts.innerHTML = topProducts
+          .map((item) => `
+            <article class="workspace__content-card">
+              <div class="workspace__content-meta">
+                <h4>${escapeHtml(item.title || 'Untitled')}</h4>
+                <small>
+                  <i class="bi bi-eye"></i> ${item.view_count || 0}
+                  &nbsp;&nbsp; <i class="bi bi-heart"></i> ${item.likes_count || 0}
+                  &nbsp;&nbsp; <i class="bi bi-chat-dots"></i> ${item.review_count || 0}
+                </small>
+              </div>
+            </article>
+          `)
+          .join('');
       }
 
-      analyticsTopProducts.innerHTML = topProducts
-        .map((item) => `
-          <article class="workspace__content-card">
-            <div class="workspace__content-meta">
-              <h4>${escapeHtml(item.title || 'Untitled')}</h4>
-              <small>
-                <i class="bi bi-eye"></i> ${item.view_count || 0}
-                &nbsp;&nbsp; <i class="bi bi-heart"></i> ${item.likes_count || 0}
-                &nbsp;&nbsp; <i class="bi bi-chat-dots"></i> ${item.review_count || 0}
-              </small>
-            </div>
-          </article>
-        `)
-        .join('');
+      return {
+        productCount: Number(data.product_count || 0),
+        totalViews: Number(data.total_views || 0),
+      };
     } catch (error) {
       analyticsTopProducts.innerHTML = `
         <article class="workspace__content-card workspace__content-card--empty">
@@ -774,6 +787,7 @@ export function renderAdminPage() {
           </div>
         </article>
       `;
+      return null;
     }
   };
 
@@ -819,21 +833,38 @@ export function renderAdminPage() {
         if (analyticsViews) analyticsViews.textContent = '0';
         if (analyticsLikes) analyticsLikes.textContent = '0';
         if (analyticsComments) analyticsComments.textContent = '0';
+        renderOverviewStats({ portfolioItemsCount: 0, totalViews: 0, uniqueCollectors: 0 });
         renderInboxMessages([]);
         activatePanel('profile');
         return;
       }
 
       const portfolioResponse = await api.get(`/artists/${artistProfile.id}/portfolio?per_page=100`);
-      renderContentItems(portfolioResponse.data || []);
-      await renderAnalytics();
+      const items = portfolioResponse.data || [];
+      renderContentItems(items);
 
+      const analyticsData = await renderAnalytics();
+
+      let messages = [];
       try {
         const messagesResponse = await api.get(`/artists/${artistProfile.id}/messages?per_page=100`);
-        renderInboxMessages(messagesResponse.data || []);
+        messages = messagesResponse.data || [];
+        renderInboxMessages(messages);
       } catch (error) {
         renderInboxMessages([]);
       }
+
+      const uniqueCollectors = new Set(
+        messages
+          .map((entry) => (entry.sender_email || '').trim().toLowerCase())
+          .filter(Boolean)
+      ).size;
+
+      renderOverviewStats({
+        portfolioItemsCount: analyticsData?.productCount ?? items.length,
+        totalViews: analyticsData?.totalViews ?? 0,
+        uniqueCollectors,
+      });
     } catch (error) {
       contentGrid.innerHTML = `
         <article class="workspace__content-card workspace__content-card--empty">
@@ -844,6 +875,7 @@ export function renderAdminPage() {
         </article>
       `;
 
+      renderOverviewStats({ portfolioItemsCount: 0, totalViews: 0, uniqueCollectors: 0 });
       renderInboxMessages([]);
     }
   };

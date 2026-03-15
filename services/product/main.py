@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 
 from shared.config import Settings
 from shared.database import create_engine, create_session_factory, Base
@@ -20,6 +21,55 @@ logger = setup_logging("product-service")
 
 settings = Settings(SERVICE_NAME="product-service", SERVICE_PORT=8003)
 
+async def _apply_legacy_schema_fixes(engine):
+    """Bring older deployments forward when denormalized counters are added."""
+    async with engine.begin() as conn:
+        likes_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'products'
+                  AND COLUMN_NAME = 'likes_count'
+                """
+            )
+        )
+
+        if not likes_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE products
+                    ADD COLUMN likes_count INT NOT NULL DEFAULT 0
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added products.likes_count")
+
+        review_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'products'
+                  AND COLUMN_NAME = 'review_count'
+                """
+            )
+        )
+
+        if not review_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE products
+                    ADD COLUMN review_count INT NOT NULL DEFAULT 0
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added products.review_count")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,9 +77,7 @@ async def lifespan(app: FastAPI):
     engine = create_engine(settings.DATABASE_URL)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    app.state.engine = engine
-    app.state.session_factory = create_session_factory(engine)
-    logger.info("Product Service started successfully")
+    await _apply_legacy_schema_fixes(enginey")
     yield
     await engine.dispose()
     logger.info("Product Service stopped")
