@@ -89,6 +89,35 @@ class TestArtistProfile:
         assert response.status_code == 200
         assert response.json()["data"]["bio"] == "Updated bio"
 
+    async def test_update_portfolio_template_and_theme(self, artist_client):
+        headers = get_auth_headers(user_id="theme-user")
+        reg_resp = await artist_client.post("/artists/register", json={
+            "artist_name": "Theme Artist",
+        }, headers=headers)
+        artist_id = reg_resp.json()["data"]["id"]
+
+        response = await artist_client.put(f"/artists/{artist_id}/profile", json={
+            "portfolio_template": "split",
+            "portfolio_theme_name": "Sunrise Story",
+            "portfolio_theme": {
+                "primary": "#9e4f2b",
+                "secondary": "#5f7d9c",
+                "accent": "#f0c47d",
+                "background": "#14121b",
+                "surface": "#1e1a27",
+                "text": "#f4f4f4",
+                "muted_text": "#bcbacc",
+                "font_family": "'Playfair Display', Georgia, serif",
+            },
+        }, headers=headers)
+
+        assert response.status_code == 200
+        payload = response.json()["data"]
+        assert payload["portfolio_template"] == "split"
+        assert payload["portfolio_theme_name"] == "Sunrise Story"
+        assert payload["portfolio_theme"]["primary"] == "#9e4f2b"
+        assert payload["portfolio_theme"]["font_family"] == "'Playfair Display', Georgia, serif"
+
 
 class TestPortfolio:
     async def test_add_portfolio_item(self, artist_client):

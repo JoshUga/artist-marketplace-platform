@@ -7,11 +7,69 @@ import { showToast } from '../components/toast.js';
 const NAV_SECTIONS = ['home', 'about', 'gallery', 'contact'];
 const VALID_SECTIONS = [...NAV_SECTIONS, 'bio'];
 const BIO_PREVIEW_LENGTH = 220;
+const TEMPLATE_KEYS = ['editorial', 'split', 'minimal-grid'];
+const FONT_OPTIONS = [
+  "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+  "'Playfair Display', Georgia, serif",
+  "'Space Grotesk', 'Trebuchet MS', sans-serif",
+  "'Cormorant Garamond', Georgia, serif",
+];
+const DEFAULT_THEME = {
+  primary: '#c47a49',
+  secondary: '#a45674',
+  accent: '#e0be86',
+  background: '#0d0c12',
+  surface: '#181722',
+  text: '#ececf2',
+  muted_text: '#a8abbb',
+  font_family: FONT_OPTIONS[0],
+};
 
 function normalizeSection(section) {
   if (!section) return 'home';
   const value = String(section).toLowerCase();
   return VALID_SECTIONS.includes(value) ? value : 'home';
+}
+
+function normalizeTemplateKey(template) {
+  const normalized = String(template || 'editorial').trim().toLowerCase();
+  return TEMPLATE_KEYS.includes(normalized) ? normalized : 'editorial';
+}
+
+function normalizeThemeConfig(theme) {
+  const candidate = theme && typeof theme === 'object' ? theme : {};
+  const merged = { ...DEFAULT_THEME };
+  const colorKeys = ['primary', 'secondary', 'accent', 'background', 'surface', 'text', 'muted_text'];
+
+  colorKeys.forEach((key) => {
+    const value = candidate[key];
+    if (typeof value === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())) {
+      merged[key] = value.trim();
+    }
+  });
+
+  if (typeof candidate.font_family === 'string') {
+    const fontCandidate = candidate.font_family.trim();
+    if (FONT_OPTIONS.includes(fontCandidate)) {
+      merged.font_family = fontCandidate;
+    }
+  }
+
+  return merged;
+}
+
+function buildThemeStyle(theme) {
+  const merged = normalizeThemeConfig(theme);
+  return [
+    `--portfolio-primary: ${merged.primary}`,
+    `--portfolio-secondary: ${merged.secondary}`,
+    `--portfolio-accent: ${merged.accent}`,
+    `--portfolio-bg: ${merged.background}`,
+    `--portfolio-surface: ${merged.surface}`,
+    `--portfolio-text: ${merged.text}`,
+    `--portfolio-muted: ${merged.muted_text}`,
+    `--portfolio-font-family: ${merged.font_family}`,
+  ].join('; ');
 }
 
 function getArtistBio(artist) {
@@ -423,6 +481,8 @@ export async function renderArtistDetailPage(params) {
       || normalizeImageUrl(artist.profile_image_url)
       || 'https://placehold.co/1600x900/1f1a22/e6ddcf?text=Artist+Portfolio';
     const initials = getInitials(artist.artist_name);
+    const templateKey = normalizeTemplateKey(artist.portfolio_template);
+    const themeStyle = buildThemeStyle(artist.portfolio_theme);
 
     const socialLinks = [
       artist.instagram ? `<a href="https://instagram.com/${artist.instagram}" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i><span>@${artist.instagram}</span></a>` : '',
@@ -431,7 +491,7 @@ export async function renderArtistDetailPage(params) {
     ].filter(Boolean).join('');
 
     app.innerHTML = `
-      <section class="portfolio-site animate-fade-in">
+      <section class="portfolio-site portfolio-site--template-${templateKey} animate-fade-in" style="${themeStyle}">
         <header class="portfolio-site__hero">
           <img class="portfolio-site__hero-image" src="${heroImage}" alt="${artist.artist_name} featured artwork">
           <div class="portfolio-site__hero-overlay"></div>

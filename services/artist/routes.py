@@ -1,4 +1,6 @@
 """Artist service API routes."""
+import json
+import re
 import uuid
 from pathlib import Path
 from io import BytesIO
@@ -30,6 +32,84 @@ router = APIRouter(prefix="/artists", tags=["Artists"])
 async def get_db():
     """Database session dependency - overridden at app startup."""
     raise NotImplementedError("Database session not configured")
+
+
+DEFAULT_PORTFOLIO_TEMPLATE = "editorial"
+DEFAULT_PORTFOLIO_THEME_NAME = "Warm Studio"
+DEFAULT_PORTFOLIO_THEME = {
+    "primary": "#c47a49",
+    "secondary": "#a45674",
+    "accent": "#e0be86",
+    "background": "#0d0c12",
+    "surface": "#181722",
+    "text": "#ececf2",
+    "muted_text": "#a8abbb",
+    "font_family": "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+}
+ALLOWED_TEMPLATES = {"editorial", "split", "minimal-grid"}
+ALLOWED_FONT_FAMILIES = {
+    "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    "'Playfair Display', Georgia, serif",
+    "'Space Grotesk', 'Trebuchet MS', sans-serif",
+    "'Cormorant Garamond', Georgia, serif",
+}
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def _normalize_template_key(value: str | None) -> str:
+    normalized = (value or DEFAULT_PORTFOLIO_TEMPLATE).strip().lower()
+    if normalized not in ALLOWED_TEMPLATES:
+        return DEFAULT_PORTFOLIO_TEMPLATE
+    return normalized
+
+
+def _normalize_theme_name(value: str | None) -> str:
+    if not value:
+        return DEFAULT_PORTFOLIO_THEME_NAME
+    cleaned = value.strip()
+    return cleaned[:120] if cleaned else DEFAULT_PORTFOLIO_THEME_NAME
+
+
+def _normalize_theme_config(value: dict | None) -> dict[str, str]:
+    merged = dict(DEFAULT_PORTFOLIO_THEME)
+    if not isinstance(value, dict):
+        return merged
+
+    color_keys = {"primary", "secondary", "accent", "background", "surface", "text", "muted_text"}
+    for key in color_keys:
+        candidate = value.get(key)
+        if isinstance(candidate, str) and HEX_COLOR_RE.fullmatch(candidate.strip()):
+            merged[key] = candidate.strip()
+
+    font_candidate = value.get("font_family")
+    if isinstance(font_candidate, str) and font_candidate.strip() in ALLOWED_FONT_FAMILIES:
+        merged["font_family"] = font_candidate.strip()
+
+    return merged
+
+
+def _build_artist_response_data(artist: Artist) -> dict:
+    try:
+        parsed_theme = json.loads(artist.portfolio_theme_config or "")
+    except json.JSONDecodeError:
+        parsed_theme = None
+
+    return ArtistResponse(
+        id=artist.id,
+        user_id=artist.user_id,
+        artist_name=artist.artist_name,
+        bio=artist.bio,
+        profile_image_url=artist.profile_image_url,
+        website=artist.website,
+        instagram=artist.instagram,
+        twitter=artist.twitter,
+        portfolio_template=_normalize_template_key(artist.portfolio_template_key),
+        portfolio_theme_name=_normalize_theme_name(artist.portfolio_theme_name),
+        portfolio_theme=_normalize_theme_config(parsed_theme),
+        is_verified=artist.is_verified,
+        is_active=artist.is_active,
+        created_at=artist.created_at,
+    ).model_dump()
 
 
 def _process_image(raw_bytes: bytes, watermark_text: str | None = None) -> tuple[bytes, str, str]:
@@ -104,7 +184,19 @@ async def register_artist(
             detail="User is already registered as an artist",
         )
 
-    artist = Artist(user_id=current_user["sub"], **artist_data.model_dump())
+    payload = artist_data.model_dump()
+    artist = Artist(
+        user_id=current_user["sub"],
+        artist_name=payload["artist_name"],
+        bio=payload.get("bio"),
+        profile_image_url=payload.get("profile_image_url"),
+        website=payload.get("website"),
+        instagram=payload.get("instagram"),
+        twitter=payload.get("twitter"),
+        portfolio_template_key=_normalize_template_key(payload.get("portfolio_template")),
+        portfolio_theme_name=_normalize_theme_name(payload.get("portfolio_theme_name")),
+        portfolio_theme_config=json.dumps(_normalize_theme_config(payload.get("portfolio_theme"))),
+    )
     db.add(artist)
     await db.flush()
     await db.refresh(artist)
@@ -112,7 +204,7 @@ async def register_artist(
     return APIResponse(
         success=True,
         message="Artist registered successfully",
-        data=ArtistResponse.model_validate(artist).model_dump(),
+        data=_build_artist_response_data(artist),
     )
 
 
@@ -141,7 +233,7 @@ async def list_artists(
     artists = result.scalars().all()
 
     return PaginatedResponse(
-        data=[ArtistResponse.model_validate(a).model_dump() for a in artists],
+        data=[_build_artist_response_data(a) for a in artists],
         total=total,
         page=page,
         per_page=per_page,
@@ -161,7 +253,7 @@ async def get_my_artist_profile(
 
     return APIResponse(
         success=True,
-        data=ArtistResponse.model_validate(artist).model_dump(),
+        data=_build_artist_response_data(artist),
     )
 
 
@@ -174,7 +266,7 @@ async def get_artist(artist_id: str, db: AsyncSession = Depends(get_db)):
 
     return APIResponse(
         success=True,
-        data=ArtistResponse.model_validate(artist).model_dump(),
+        data=_build_artist_response_data(artist),
     )
 
 
@@ -194,8 +286,27 @@ async def update_artist_profile(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     update_dict = update_data.model_dump(exclude_unset=True)
-    for key, value in update_dict.items():
-        setattr(artist, key, value)
+
+    mapped_fields = {
+        "artist_name",
+        "bio",
+        "profile_image_url",
+        "website",
+        "instagram",
+        "twitter",
+    }
+    for key in mapped_fields:
+        if key in update_dict:
+            setattr(artist, key, update_dict[key])
+
+    if "portfolio_template" in update_dict:
+        artist.portfolio_template_key = _normalize_template_key(update_dict.get("portfolio_template"))
+
+    if "portfolio_theme_name" in update_dict:
+        artist.portfolio_theme_name = _normalize_theme_name(update_dict.get("portfolio_theme_name"))
+
+    if "portfolio_theme" in update_dict:
+        artist.portfolio_theme_config = json.dumps(_normalize_theme_config(update_dict.get("portfolio_theme")))
 
     await db.flush()
     await db.refresh(artist)
@@ -203,7 +314,7 @@ async def update_artist_profile(
     return APIResponse(
         success=True,
         message="Profile updated",
-        data=ArtistResponse.model_validate(artist).model_dump(),
+        data=_build_artist_response_data(artist),
     )
 
 

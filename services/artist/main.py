@@ -25,6 +25,9 @@ settings = Settings(SERVICE_NAME="artist-service", SERVICE_PORT=8002)
 
 async def _apply_legacy_schema_fixes(engine):
     """Bring older deployments forward when new columns are added."""
+    if engine.dialect.name != "mysql":
+        return
+
     async with engine.begin() as conn:
         availability_column_exists = await conn.scalar(
             text(
@@ -49,6 +52,74 @@ async def _apply_legacy_schema_fixes(engine):
                 )
             )
             logger.info("Applied schema fix: added portfolio_items.availability")
+
+        template_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'artists'
+                  AND COLUMN_NAME = 'portfolio_template_key'
+                """
+            )
+        )
+        if not template_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE artists
+                    ADD COLUMN portfolio_template_key VARCHAR(64)
+                    NOT NULL DEFAULT 'editorial'
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added artists.portfolio_template_key")
+
+        theme_name_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'artists'
+                  AND COLUMN_NAME = 'portfolio_theme_name'
+                """
+            )
+        )
+        if not theme_name_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE artists
+                    ADD COLUMN portfolio_theme_name VARCHAR(120)
+                    NOT NULL DEFAULT 'Warm Studio'
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added artists.portfolio_theme_name")
+
+        theme_config_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'artists'
+                  AND COLUMN_NAME = 'portfolio_theme_config'
+                """
+            )
+        )
+        if not theme_config_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE artists
+                    ADD COLUMN portfolio_theme_config TEXT NULL
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added artists.portfolio_theme_config")
 
 
 @asynccontextmanager

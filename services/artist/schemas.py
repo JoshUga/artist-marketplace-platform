@@ -11,6 +11,9 @@ class ArtistCreate(BaseModel):
     website: Optional[str] = None
     instagram: Optional[str] = None
     twitter: Optional[str] = None
+    portfolio_template: Optional[str] = None
+    portfolio_theme_name: Optional[str] = None
+    portfolio_theme: Optional[dict[str, str]] = None
 
 
 class ArtistUpdate(BaseModel):
@@ -20,6 +23,9 @@ class ArtistUpdate(BaseModel):
     website: Optional[str] = None
     instagram: Optional[str] = None
     twitter: Optional[str] = None
+    portfolio_template: Optional[str] = None
+    portfolio_theme_name: Optional[str] = None
+    portfolio_theme: Optional[dict[str, str]] = None
 
 
 class ArtistResponse(BaseModel):
@@ -31,6 +37,9 @@ class ArtistResponse(BaseModel):
     website: Optional[str] = None
     instagram: Optional[str] = None
     twitter: Optional[str] = None
+    portfolio_template: str
+    portfolio_theme_name: str
+    portfolio_theme: dict[str, str]
     is_verified: bool
     is_active: bool
     created_at: datetime
