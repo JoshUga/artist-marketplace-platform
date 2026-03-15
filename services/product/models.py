@@ -1,7 +1,18 @@
 """Product service database models."""
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, Boolean, DateTime, Float, Integer, Enum as SAEnum
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    Boolean,
+    DateTime,
+    Float,
+    Integer,
+    Enum as SAEnum,
+    ForeignKey,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.mysql import CHAR
 from shared.database import Base
 import enum
@@ -31,6 +42,8 @@ class Product(Base):
     medium = Column(String(100), nullable=True)
     is_featured = Column(Boolean, default=False, nullable=False)
     view_count = Column(Integer, default=0, nullable=False)
+    likes_count = Column(Integer, default=0, nullable=False)
+    review_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime,
@@ -47,4 +60,28 @@ class Category(Base):
     name = Column(String(100), unique=True, nullable=False)
     description = Column(Text, nullable=True)
     slug = Column(String(100), unique=True, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ProductLike(Base):
+    __tablename__ = "product_likes"
+    __table_args__ = (
+        UniqueConstraint("product_id", "user_id", name="uq_product_like_user"),
+    )
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_id = Column(CHAR(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(CHAR(36), nullable=False, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ProductReview(Base):
+    __tablename__ = "product_reviews"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_id = Column(CHAR(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(CHAR(36), nullable=False, index=True)
+    user_name = Column(String(255), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

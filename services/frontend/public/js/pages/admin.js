@@ -556,10 +556,12 @@ export function renderAdminPage() {
       .map((item) => `
         <article class="workspace__content-card">
           <div class="workspace__content-thumb">
-            <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+            <a href="/portfolio/${item.artist_id}/item/${item.id}" data-link aria-label="Open ${item.title} details">
+              <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+            </a>
           </div>
           <div class="workspace__content-meta">
-            <h4>${item.title}</h4>
+            <h4><a href="/portfolio/${item.artist_id}/item/${item.id}" data-link>${item.title}</a></h4>
             <div class="workspace__content-description">${item.description || '<p>No description added yet.</p>'}</div>
             <small>Type: ${item.availability === 'physical' ? 'Physical copy' : 'Digital art'}</small>
           </div>

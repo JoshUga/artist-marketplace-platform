@@ -4,12 +4,40 @@
 import api from '../services/api.js';
 import { showToast } from '../components/toast.js';
 
-const VALID_SECTIONS = ['home', 'about', 'gallery', 'contact'];
+const NAV_SECTIONS = ['home', 'about', 'gallery', 'contact'];
+const VALID_SECTIONS = [...NAV_SECTIONS, 'bio'];
+const BIO_PREVIEW_LENGTH = 220;
 
 function normalizeSection(section) {
   if (!section) return 'home';
   const value = String(section).toLowerCase();
   return VALID_SECTIONS.includes(value) ? value : 'home';
+}
+
+function getArtistBio(artist) {
+  const bio = (artist?.bio || '').trim();
+  return bio || `${artist.artist_name} is currently shaping a body of work rooted in contemporary craft and expressive detail.`;
+}
+
+function buildBioPreview(text, maxLength = BIO_PREVIEW_LENGTH) {
+  const clean = (text || '').trim();
+  if (clean.length <= maxLength) {
+    return { text: clean, isTruncated: false };
+  }
+
+  const cutoff = clean.lastIndexOf(' ', maxLength);
+  const safeCutoff = cutoff > Math.floor(maxLength * 0.6) ? cutoff : maxLength;
+  return { text: `${clean.slice(0, safeCutoff).trim()}...`, isTruncated: true };
+}
+
+function createBioPreviewMarkup(artist, maxLength = BIO_PREVIEW_LENGTH, className = '') {
+  const fullBio = getArtistBio(artist);
+  const preview = buildBioPreview(fullBio, maxLength);
+
+  return `
+    <p class="${className}">${preview.text}</p>
+    ${preview.isTruncated ? `<a href="/portfolio/${artist.id}/bio" class="portfolio-site__view-more" data-link>View more</a>` : ''}
+  `;
 }
 
 function getInitials(name) {
@@ -50,7 +78,7 @@ function normalizeImageUrl(value) {
 }
 
 function createTopNavigation(artistId, activeSection) {
-  return VALID_SECTIONS.map((section) => {
+  return NAV_SECTIONS.map((section) => {
     const isActive = section === activeSection;
     const label = section.charAt(0).toUpperCase() + section.slice(1);
     return `<a class="portfolio-site__nav-link ${isActive ? 'is-active' : ''}" href="/portfolio/${artistId}/${section}" data-link>${label}</a>`;
@@ -62,9 +90,11 @@ function renderHomeSection(artist, portfolioItems) {
   const highlightMarkup = featured.length
     ? featured.map((item) => `
         <article class="portfolio-site__highlight-item">
-          <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+          <a href="/portfolio/${artist.id}/item/${item.id}" class="portfolio-site__item-link" data-link aria-label="Open ${item.title} details">
+            <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+          </a>
           <div>
-            <h3>${item.title}</h3>
+            <h3><a href="/portfolio/${artist.id}/item/${item.id}" class="portfolio-site__item-link" data-link>${item.title}</a></h3>
             <p>${item.description || 'A featured piece from the artist collection.'}</p>
           </div>
         </article>
@@ -86,7 +116,7 @@ function renderHomeSection(artist, portfolioItems) {
       <div class="portfolio-site__home-grid">
         <article class="portfolio-site__panel">
           <h3>Creative Direction</h3>
-          <p>${artist.bio || `${artist.artist_name} explores visual storytelling through handcrafted compositions.`}</p>
+          ${createBioPreviewMarkup(artist, 200, 'portfolio-site__bio-preview')}
           <ul class="portfolio-site__facts">
             <li><strong>Status</strong><span>${artist.is_verified ? 'Verified artist' : 'Independent artist'}</span></li>
             <li><strong>Portfolio pieces</strong><span>${portfolioItems.length}</span></li>
@@ -114,7 +144,7 @@ function renderAboutSection(artist, portfolioItems) {
       <div class="portfolio-site__about-grid">
         <article class="portfolio-site__panel">
           <h3>Artist Statement</h3>
-          <p>${artist.bio || `${artist.artist_name} is currently shaping a body of work rooted in contemporary craft and expressive detail.`}</p>
+          ${createBioPreviewMarkup(artist, 300, 'portfolio-site__bio-preview')}
           <p>Each piece is developed with an emphasis on texture, color rhythm, and emotional resonance.</p>
         </article>
         <article class="portfolio-site__panel">
@@ -132,15 +162,39 @@ function renderAboutSection(artist, portfolioItems) {
   `;
 }
 
+function renderFullBioSection(artist) {
+  const fullBio = getArtistBio(artist);
+
+  return `
+    <section class="portfolio-site__section portfolio-site__section--bio animate-fade-in">
+      <div class="portfolio-site__section-head">
+        <p class="portfolio-site__eyebrow">Biography</p>
+        <h2>About ${artist.artist_name}</h2>
+      </div>
+      <article class="portfolio-site__panel">
+        <p class="portfolio-site__bio-full">${fullBio}</p>
+        <div style="margin-top: var(--spacing-md);">
+          <a href="/portfolio/${artist.id}/about" class="btn btn--outline" data-link>
+            <i class="bi bi-arrow-left"></i>
+            Back to About
+          </a>
+        </div>
+      </article>
+    </section>
+  `;
+}
+
 function renderGallerySection(portfolioItems) {
   const galleryMarkup = portfolioItems.length
     ? portfolioItems.map((item, index) => `
         <article class="portfolio-site__item" style="animation-delay: ${Math.min(index * 0.07, 0.35)}s">
           <div class="portfolio-site__item-media">
-            <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+            <a href="/portfolio/${item.artist_id}/item/${item.id}" class="portfolio-site__item-link" data-link aria-label="Open ${item.title} details">
+              <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+            </a>
           </div>
           <div class="portfolio-site__item-body">
-            <h3>${item.title}</h3>
+            <h3><a href="/portfolio/${item.artist_id}/item/${item.id}" class="portfolio-site__item-link" data-link>${item.title}</a></h3>
             <p>${item.description || 'No additional notes for this piece yet.'}</p>
           </div>
         </article>
@@ -216,7 +270,41 @@ function renderContactSection(artist) {
   `;
 }
 
+function renderItemDetailSection(artist, item) {
+  if (!item) {
+    return `
+      <section class="portfolio-site__section animate-fade-in">
+        <article class="portfolio-site__empty">
+          <i class="bi bi-image"></i>
+          <h3>Artwork not found</h3>
+          <p>This artwork may have been removed from the portfolio.</p>
+          <a href="/portfolio/${artist.id}/gallery" class="btn btn--outline" data-link>Back to Gallery</a>
+        </article>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="portfolio-site__section animate-fade-in">
+      <div class="portfolio-site__section-head">
+        <p class="portfolio-site__eyebrow">Artwork Detail</p>
+        <h2>${item.title}</h2>
+      </div>
+      <article class="portfolio-site__panel" style="display: grid; gap: var(--spacing-md);">
+        <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="eager" style="width: 100%; border-radius: var(--radius-md); max-height: 70vh; object-fit: contain; background: rgba(0,0,0,0.2);">
+        <p>${item.description || 'No detailed notes were shared for this artwork yet.'}</p>
+        <p class="portfolio-site__muted">Availability: ${item.availability === 'physical' ? 'Physical copy available' : 'Digital art'}</p>
+        <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+          <a href="/portfolio/${artist.id}/gallery" class="btn btn--outline" data-link><i class="bi bi-grid-3x3-gap"></i> Back to Gallery</a>
+          <button class="btn btn--primary" type="button" id="copy-portfolio-item-link"><i class="bi bi-link-45deg"></i> Copy Link</button>
+        </div>
+      </article>
+    </section>
+  `;
+}
+
 function renderSectionContent(section, artist, portfolioItems) {
+  if (section === 'bio') return renderFullBioSection(artist);
   if (section === 'about') return renderAboutSection(artist, portfolioItems);
   if (section === 'gallery') return renderGallerySection(portfolioItems);
   if (section === 'contact') return renderContactSection(artist);
@@ -301,6 +389,9 @@ export async function renderArtistDetailPage(params) {
 
     const artist = artistResponse.data;
     const portfolioItems = portfolioResponse.data || [];
+    const selectedItem = params.itemId
+      ? portfolioItems.find((item) => String(item.id) === String(params.itemId))
+      : null;
     const heroImage = normalizeImageUrl(portfolioItems[0]?.image_url)
       || normalizeImageUrl(artist.profile_image_url)
       || 'https://placehold.co/1600x900/1f1a22/e6ddcf?text=Artist+Portfolio';
@@ -327,7 +418,7 @@ export async function renderArtistDetailPage(params) {
               </div>
               <div class="portfolio-site__headline">
                 <h1>${artist.artist_name} ${artist.is_verified ? '<i class="bi bi-patch-check-fill"></i>' : ''}</h1>
-                <p>${artist.bio || 'Artist on ArtMarket'}</p>
+                ${createBioPreviewMarkup(artist, 180, 'portfolio-site__bio-preview portfolio-site__bio-preview--hero')}
                 <div class="portfolio-site__social">
                   ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
                 </div>
@@ -337,12 +428,24 @@ export async function renderArtistDetailPage(params) {
         </header>
 
         <div class="container portfolio-site__content-wrap">
-          ${renderSectionContent(activeSection, artist, portfolioItems)}
+          ${params.itemId
+            ? renderItemDetailSection(artist, selectedItem)
+            : renderSectionContent(activeSection, artist, portfolioItems)}
         </div>
       </section>
     `;
 
     setupContactForm(artist.id, artist.artist_name);
+
+    const copyButton = document.getElementById('copy-portfolio-item-link');
+    copyButton?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        showToast('Artwork link copied.', 'success');
+      } catch {
+        showToast('Could not copy link from this browser.', 'warning');
+      }
+    });
   } catch (error) {
     app.innerHTML = `
       <div class="container" style="padding: var(--spacing-2xl) var(--spacing-md);">

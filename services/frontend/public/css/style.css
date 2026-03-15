@@ -368,6 +368,8 @@ img {
 }
 
 .card__image {
+  position: relative;
+  display: block;
   aspect-ratio: 4 / 3;
   background: var(--bg-color-soft);
   overflow: hidden;
@@ -377,6 +379,7 @@ img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .card__title {
@@ -400,6 +403,137 @@ img {
 .card__price {
   color: #fff;
   font-weight: 700;
+}
+
+.product-page {
+  display: grid;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-2xl) var(--spacing-md) var(--spacing-2xl);
+}
+
+.product-layout {
+  display: grid;
+  gap: var(--spacing-md);
+}
+
+.product-media {
+  overflow: hidden;
+}
+
+.product-media img {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  object-fit: cover;
+}
+
+.product-title {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-2xl);
+}
+
+.product-price-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.product-price {
+  font-size: var(--font-size-xl);
+  color: #fff;
+  font-weight: 800;
+}
+
+.product-description {
+  color: #e6e7ee;
+  margin-top: var(--spacing-sm);
+}
+
+.product-stats {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--spacing-md);
+  color: var(--text-color-light);
+}
+
+.product-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+
+.product-share-grid {
+  margin-top: var(--spacing-sm);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.product-reviews {
+  margin-top: var(--spacing-sm);
+}
+
+.product-review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.product-review-head h2 {
+  font-size: var(--font-size-xl);
+}
+
+.product-review-head p {
+  color: var(--text-color-light);
+  font-size: var(--font-size-sm);
+}
+
+.product-review-form {
+  margin-bottom: var(--spacing-md);
+}
+
+.product-review-form .form-input,
+.product-review-form .form-textarea {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.product-reviews-list {
+  display: grid;
+  gap: var(--spacing-sm);
+}
+
+.product-review-item {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.product-review-item__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: 4px;
+}
+
+.product-review-item__rating {
+  color: #ffd166;
+  font-size: var(--font-size-sm);
+}
+
+.product-review-item p {
+  color: #d7dae7;
+}
+
+@media (min-width: 960px) {
+  .product-layout {
+    grid-template-columns: 1.15fr 0.85fr;
+    align-items: start;
+  }
 }
 
 .card__badge {
@@ -997,12 +1131,13 @@ img {
 
 /* Dashboard workspace */
 .workspace {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: var(--spacing-lg);
   padding: var(--spacing-lg);
+  overflow: hidden;
 }
 
 .workspace__sidebar {
@@ -1013,6 +1148,8 @@ img {
   display: grid;
   gap: var(--spacing-lg);
   align-content: start;
+  height: calc(100dvh - 2 * var(--spacing-lg));
+  overflow: hidden;
 }
 
 .workspace__brand {
@@ -1064,6 +1201,10 @@ img {
   border-radius: var(--radius-xl);
   background: rgba(16, 15, 24, 0.8);
   padding: clamp(16px, 3vw, 30px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workspace__header {
@@ -1097,10 +1238,15 @@ img {
 
 .workspace__panel {
   display: none;
+  min-height: 0;
 }
 
 .workspace__panel.is-active {
   display: block;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
 }
 
 .workspace__content-head {
@@ -1134,10 +1280,17 @@ img {
   background: linear-gradient(145deg, #25161f, #171824, #3a2d39);
 }
 
+.workspace__content-thumb a {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .workspace__content-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .workspace__content-meta {
@@ -1567,6 +1720,37 @@ img {
   max-width: 54ch;
 }
 
+.portfolio-site__bio-preview {
+  color: var(--text-color-light);
+  max-width: 60ch;
+}
+
+.portfolio-site__bio-preview--hero {
+  color: rgba(255, 255, 255, 0.84);
+  margin-bottom: 2px;
+}
+
+.portfolio-site__bio-full {
+  color: #f1f2f8;
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.portfolio-site__view-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: #f4dcb8;
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.portfolio-site__view-more:hover {
+  color: #ffe8c9;
+}
+
 .portfolio-site__social {
   margin-top: var(--spacing-sm);
   display: flex;
@@ -1689,6 +1873,16 @@ img {
   aspect-ratio: 1;
 }
 
+.portfolio-site__item-link {
+  color: inherit;
+  display: block;
+}
+
+.portfolio-site__item-link:hover img {
+  transform: scale(1.02);
+  transition: transform 0.22s ease;
+}
+
 .portfolio-site__highlight-item h3 {
   margin-bottom: 4px;
   font-size: var(--font-size-sm);
@@ -1715,12 +1909,32 @@ img {
 .portfolio-site__item-media {
   aspect-ratio: 4 / 3;
   background: #151320;
+  overflow: hidden;
 }
 
 .portfolio-site__item-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+}
+
+.image-frame {
+  aspect-ratio: 4 / 3;
+  background: rgba(8, 8, 12, 0.5);
+  overflow: hidden;
+}
+
+.image-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.image-frame--contain img {
+  object-fit: contain;
+  background: rgba(8, 8, 12, 0.72);
 }
 
 .portfolio-site__item-body {
@@ -1774,7 +1988,11 @@ img {
 /* Mobile */
 @media (max-width: 1024px) {
   .workspace {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .workspace__sidebar {
@@ -1786,6 +2004,8 @@ img {
     transform: translateX(-120%);
     transition: transform 0.2s ease;
     z-index: 1000;
+    height: auto;
+    overflow: auto;
   }
 
   .workspace__sidebar.is-open {
@@ -1796,6 +2016,16 @@ img {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .workspace__main {
+    overflow: visible;
+    grid-template-rows: auto auto;
+  }
+
+  .workspace__panel.is-active {
+    overflow: visible;
+    padding-right: 0;
   }
 
   .workspace__stats,

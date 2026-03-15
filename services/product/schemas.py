@@ -51,6 +51,8 @@ class ProductResponse(BaseModel):
     medium: Optional[str] = None
     is_featured: bool
     view_count: int
+    likes_count: int
+    review_count: int
     created_at: datetime
 
     class Config:
@@ -68,6 +70,41 @@ class CategoryResponse(BaseModel):
     name: str
     description: Optional[str] = None
     slug: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ProductReviewCreate(BaseModel):
+    rating: int
+    comment: str
+
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v):
+        if v < 1 or v > 5:
+            raise ValueError("Rating must be between 1 and 5")
+        return v
+
+    @field_validator("comment")
+    @classmethod
+    def validate_comment(cls, v):
+        cleaned = v.strip()
+        if len(cleaned) < 3:
+            raise ValueError("Comment must be at least 3 characters")
+        if len(cleaned) > 2000:
+            raise ValueError("Comment must be 2000 characters or fewer")
+        return cleaned
+
+
+class ProductReviewResponse(BaseModel):
+    id: str
+    product_id: str
+    user_id: str
+    user_name: str
+    rating: int
+    comment: str
     created_at: datetime
 
     class Config:

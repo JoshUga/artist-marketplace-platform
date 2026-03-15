@@ -155,3 +155,60 @@ class TestHealthCheck:
         response = await product_client.get("/health")
         assert response.status_code == 200
         assert response.json()["service"] == "product-service"
+
+
+class TestProductEngagement:
+    async def test_like_and_unlike_product(self, product_client):
+        headers = get_auth_headers()
+        create_resp = await product_client.post("/products", json={
+            "title": "Likeable Product",
+            "price": 120.0,
+        }, headers=headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        like_resp = await product_client.post(f"/products/{product_id}/likes", headers=headers)
+        assert like_resp.status_code == 200
+        assert like_resp.json()["data"]["liked"] is True
+        assert like_resp.json()["data"]["likes_count"] == 1
+
+        unlike_resp = await product_client.delete(f"/products/{product_id}/likes", headers=headers)
+        assert unlike_resp.status_code == 200
+        assert unlike_resp.json()["data"]["liked"] is False
+        assert unlike_resp.json()["data"]["likes_count"] == 0
+
+    async def test_add_review_and_get_engagement(self, product_client):
+        headers = get_auth_headers(user_id="reviewer-1")
+        create_resp = await product_client.post("/products", json={
+            "title": "Review Target",
+            "price": 89.0,
+        }, headers=headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        review_resp = await product_client.post(f"/products/{product_id}/reviews", json={
+            "rating": 5,
+            "comment": "Excellent artwork and presentation.",
+        }, headers=headers)
+        assert review_resp.status_code == 201
+        assert review_resp.json()["data"]["rating"] == 5
+
+        engagement_resp = await product_client.get(f"/products/{product_id}/engagement")
+        assert engagement_resp.status_code == 200
+        data = engagement_resp.json()["data"]
+        assert data["review_count"] == 1
+        assert len(data["reviews"]) == 1
+        assert data["average_rating"] == 5.0
+
+    async def test_share_metadata(self, product_client):
+        headers = get_auth_headers(user_id="creator-1")
+        create_resp = await product_client.post("/products", json={
+            "title": "Share Ready Product",
+            "description": "Created for social preview cards.",
+            "price": 210.0,
+        }, headers=headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        share_resp = await product_client.get(f"/products/{product_id}/share")
+        assert share_resp.status_code == 200
+        share_data = share_resp.json()["data"]
+        assert share_data["title"] == "Share Ready Product"
+        assert f"/products/{product_id}" in share_data["canonical_url"]

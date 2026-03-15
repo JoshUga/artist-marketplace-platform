@@ -5,11 +5,11 @@ export function createProductCard(product) {
   const card = document.createElement('div');
   card.className = 'card product-card animate-fade-in';
   card.innerHTML = `
-    <div class="card__image">
+    <a href="/products/${product.id}" class="card__image" data-link aria-label="View ${product.title}">
       <img src="${product.image_url || 'https://placehold.co/400x300/e2e8f0/475569?text=Artwork'}" 
            alt="${product.title}" loading="lazy">
       ${product.is_featured ? '<span class="badge badge--warning card__badge">Featured</span>' : ''}
-    </div>
+    </a>
     <div class="card__body">
       <h3 class="card__title">${product.title}</h3>
       <p class="card__text">${(product.description || '').substring(0, 100)}${(product.description || '').length > 100 ? '...' : ''}</p>
