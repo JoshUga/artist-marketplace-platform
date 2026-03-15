@@ -1,81 +1,109 @@
 /**
- * Artist detail/profile page.
+ * Standalone artist portfolio website page.
  */
 import api from '../services/api.js';
-import { createProductCard, createSkeletonCard } from '../components/card.js';
 
 export async function renderArtistDetailPage(params) {
   const app = document.getElementById('app');
   app.innerHTML = `
-    <div class="container" style="padding: var(--spacing-2xl) var(--spacing-md);">
-      <div class="skeleton" style="height: 300px; border-radius: var(--border-radius-md);"></div>
-    </div>
+    <section class="portfolio-site">
+      <div class="portfolio-site__loading">
+        <span class="spinner"></span>
+      </div>
+    </section>
   `;
 
   try {
-    const data = await api.get(`/artists/${params.id}`);
-    const artist = data.data;
+    const [artistResponse, portfolioResponse] = await Promise.all([
+      api.get(`/artists/${params.id}`),
+      api.get(`/artists/${params.id}/portfolio?per_page=100`),
+    ]);
 
-    let portfolioHTML = '<div class="grid grid-cols-3" id="portfolio-grid"></div>';
+    const artist = artistResponse.data;
+    const portfolioItems = portfolioResponse.data || [];
+    const heroImage = portfolioItems[0]?.image_url || artist.profile_image_url || 'https://placehold.co/1600x900/1f1a22/e6ddcf?text=Artist+Portfolio';
+    const initials = (artist.artist_name || 'A').charAt(0).toUpperCase();
+
+    const socialLinks = [
+      artist.instagram ? `<a href="https://instagram.com/${artist.instagram}" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i><span>@${artist.instagram}</span></a>` : '',
+      artist.twitter ? `<a href="https://twitter.com/${artist.twitter}" target="_blank" rel="noopener noreferrer"><i class="bi bi-twitter"></i><span>@${artist.twitter}</span></a>` : '',
+      artist.website ? `<a href="${artist.website}" target="_blank" rel="noopener noreferrer"><i class="bi bi-globe2"></i><span>Website</span></a>` : '',
+    ].filter(Boolean).join('');
+
+    const portfolioGrid = portfolioItems.length
+      ? portfolioItems.map((item, index) => `
+          <article class="portfolio-site__item" style="animation-delay: ${Math.min(index * 0.08, 0.36)}s">
+            <div class="portfolio-site__item-media">
+              <img src="${item.image_url}" alt="${item.title}" loading="lazy">
+            </div>
+            <div class="portfolio-site__item-body">
+              <h3>${item.title}</h3>
+              <p>${item.description || 'No additional notes for this piece yet.'}</p>
+            </div>
+          </article>
+        `).join('')
+      : `
+        <article class="portfolio-site__empty">
+          <i class="bi bi-images"></i>
+          <h3>Portfolio in progress</h3>
+          <p>This artist has not published any portfolio content yet.</p>
+        </article>
+      `;
 
     app.innerHTML = `
-      <div class="artist-profile animate-fade-in">
-        <div class="artist-profile-header">
-          <div class="container">
-            <div class="artist-profile-info">
-              <div class="avatar avatar-xl">
-                <img src="${artist.profile_image_url || 'https://placehold.co/150x150/e2e8f0/475569?text=' + artist.artist_name.charAt(0)}" alt="${artist.artist_name}">
+      <section class="portfolio-site animate-fade-in">
+        <header class="portfolio-site__hero">
+          <img class="portfolio-site__hero-image" src="${heroImage}" alt="${artist.artist_name} featured artwork">
+          <div class="portfolio-site__hero-overlay"></div>
+          <div class="portfolio-site__hero-content container">
+            <div class="portfolio-site__identity animate-scale-in">
+              <div class="portfolio-site__avatar">
+                <img src="${artist.profile_image_url || 'https://placehold.co/160x160/181722/e6ddcf?text=' + initials}" alt="${artist.artist_name}">
               </div>
-              <div>
-                <h1>${artist.artist_name} ${artist.is_verified ? '<i class="bi bi-patch-check-fill" style="color: var(--primary-color);"></i>' : ''}</h1>
+              <div class="portfolio-site__headline">
+                <h1>${artist.artist_name} ${artist.is_verified ? '<i class="bi bi-patch-check-fill"></i>' : ''}</h1>
                 <p>${artist.bio || 'Artist on ArtMarket'}</p>
-                <div class="artist-social">
-                  ${artist.instagram ? `<a href="https://instagram.com/${artist.instagram}" target="_blank" rel="noopener noreferrer"><i class="bi bi-instagram"></i></a>` : ''}
-                  ${artist.twitter ? `<a href="https://twitter.com/${artist.twitter}" target="_blank" rel="noopener noreferrer"><i class="bi bi-twitter"></i></a>` : ''}
-                  ${artist.website ? `<a href="${artist.website}" target="_blank" rel="noopener noreferrer"><i class="bi bi-globe"></i></a>` : ''}
+                <div class="portfolio-site__social">
+                  ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="container" style="padding: var(--spacing-2xl) var(--spacing-md);">
-          <h2 class="section-title"><i class="bi bi-images"></i> Portfolio</h2>
-          ${portfolioHTML}
-        </div>
-      </div>
-    `;
+        </header>
 
-    // Load portfolio
-    try {
-      const portfolioData = await api.get(`/artists/${params.id}/portfolio`);
-      const grid = document.getElementById('portfolio-grid');
-      if (portfolioData.data && portfolioData.data.length > 0) {
-        grid.innerHTML = '';
-        portfolioData.data.forEach(item => {
-          const card = document.createElement('div');
-          card.className = 'card animate-fade-in';
-          card.innerHTML = `
-            <div class="card-image"><img src="${item.image_url}" alt="${item.title}" loading="lazy"></div>
-            <div class="card-body">
-              <h3 class="card-title">${item.title}</h3>
-              <p class="card-text">${item.description || ''}</p>
-            </div>
-          `;
-          grid.appendChild(card);
-        });
-      } else {
-        grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><i class="bi bi-images"></i><h3>No portfolio items yet</h3></div>';
-      }
-    } catch (e) {
-      // Portfolio failed to load
-    }
+        <section class="portfolio-site__about container">
+          <article class="portfolio-site__about-card">
+            <h2>About the Artist</h2>
+            <p>${artist.bio || `${artist.artist_name} is developing a new collection. Check back soon for new work and updates.`}</p>
+          </article>
+          <article class="portfolio-site__about-card">
+            <h2>Studio Snapshot</h2>
+            <ul>
+              <li><strong>Artist:</strong> ${artist.artist_name}</li>
+              <li><strong>Status:</strong> ${artist.is_verified ? 'Verified artist' : 'Emerging artist'}</li>
+              <li><strong>Pieces Published:</strong> ${portfolioItems.length}</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="portfolio-site__gallery container">
+          <div class="portfolio-site__section-head">
+            <p class="portfolio-site__eyebrow">Collection</p>
+            <h2>Featured Content</h2>
+          </div>
+          <div class="portfolio-site__grid">
+            ${portfolioGrid}
+          </div>
+        </section>
+      </section>
+    `;
   } catch (error) {
     app.innerHTML = `
       <div class="container" style="padding: var(--spacing-2xl) var(--spacing-md);">
         <div class="empty-state">
           <i class="bi bi-person-x"></i>
-          <h3>Artist not found</h3>
-          <a href="/artists" class="btn btn-primary" data-link>Browse Artists</a>
+          <h3>Portfolio site unavailable</h3>
+          <p>We could not load this artist portfolio right now.</p>
         </div>
       </div>
     `;

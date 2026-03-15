@@ -56,6 +56,7 @@ function setupRoutes() {
     .add('/data-removal', () => renderDataRemovalPage())
     .add('/artists', () => renderArtistsPage())
     .add('/artists/:id', (params) => renderArtistDetailPage(params))
+    .add('/portfolio/:id', (params) => renderArtistDetailPage(params))
     .add('/products/:id', (params) => renderProductDetailPage(params))
     .add('/admin', () => {
       if (!isAuthenticated()) {

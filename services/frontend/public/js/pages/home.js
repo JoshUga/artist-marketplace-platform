@@ -8,67 +8,80 @@ export async function renderHomePage() {
   const actions = isAuth
     ? `
       <a href="/admin" class="btn btn--primary btn--lg" data-link>Go to Dashboard</a>
-      <a href="/register" class="btn btn--ghost btn--lg landing-card__action-ghost" data-link>Add another artist profile</a>
+      <a href="/register" class="btn btn--outline btn--lg" data-link>Add another artist profile</a>
     `
     : `
       <a href="/login" class="btn btn--primary btn--lg" data-link>Login</a>
-      <a href="/register" class="btn btn--outline btn--lg landing-card__action-alt" data-link>Register</a>
+      <a href="/register" class="btn btn--outline btn--lg" data-link>Register</a>
     `;
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <section class="landing">
-      <div class="landing__glow landing__glow--left" aria-hidden="true"></div>
-      <div class="landing__glow landing__glow--right" aria-hidden="true"></div>
+      <div class="landing__backdrop" aria-hidden="true"></div>
 
-      <article class="landing-piece landing-piece--one" aria-hidden="true">
-        <div class="landing-piece__art landing-piece__art--portrait"></div>
-        <span class="landing-piece__label">Portrait Series</span>
-      </article>
+      <div class="landing__overlay animate-fade-in">
+        <p class="landing__eyebrow">Artist-Led Marketplace</p>
+        <h1 class="landing__title">Find original art with the studio story still attached.</h1>
+        <p class="landing__text">Explore immersive artist portfolios, limited releases, and private collector relationships shaped by each artist, not by a generic storefront.</p>
 
-      <article class="landing-piece landing-piece--two" aria-hidden="true">
-        <div class="landing-piece__art landing-piece__art--gallery"></div>
-        <span class="landing-piece__label">Studio Drops</span>
-      </article>
+        <div class="landing__actions">
+          ${actions}
+        </div>
 
-      <article class="landing-piece landing-piece--three" aria-hidden="true">
-        <div class="landing-piece__art landing-piece__art--abstract"></div>
-        <span class="landing-piece__label">Collectors' Editions</span>
-      </article>
+        <ul class="landing__meta" aria-label="Marketplace highlights">
+          <li><strong>Original Works</strong> Portfolio-led inventory curated by each artist.</li>
+          <li><strong>Private Buyers</strong> Collector relationships stay inside the artist workspace.</li>
+        </ul>
+      </div>
 
-      <article class="landing-piece landing-piece--four" aria-hidden="true">
-        <div class="landing-piece__art landing-piece__art--sculpt"></div>
-        <span class="landing-piece__label">Sculpture Rooms</span>
-      </article>
-
-      <div class="landing__content">
-        <div class="landing-card animate-scale-in">
-          <p class="landing-card__eyebrow">Artist-Led Marketplace</p>
-          <h1 class="landing-card__title">Find original art with the studio story still attached.</h1>
-          <p class="landing-card__text">Explore immersive artist portfolios, limited releases, and private collector relationships shaped by each artist, not by a generic storefront.</p>
-
-          <div class="landing-card__actions">
-            ${actions}
-          </div>
-
-          <div class="landing-card__metrics">
-            <div class="landing-card__metric">
-              <span class="landing-card__metric-value">Original Works</span>
-              <span class="landing-card__metric-label">Portfolio-led inventory curated by the artist.</span>
-            </div>
-            <div class="landing-card__metric">
-              <span class="landing-card__metric-value">Private Buyers</span>
-              <span class="landing-card__metric-label">Each buyer relationship stays inside the artist portfolio.</span>
-            </div>
+      <aside class="landing__rail" aria-label="Featured artworks">
+        <div class="landing__rail-col landing__rail-col--up">
+          <div class="landing__rail-track">
+            <figure class="landing__rail-item"><img src="/images/landing/rail-1.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-2.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-3.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-1.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-2.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-3.jpg" alt="Curated fine art piece" loading="lazy"></figure>
           </div>
         </div>
-      </div>
+
+        <div class="landing__rail-col landing__rail-col--down">
+          <div class="landing__rail-track">
+            <figure class="landing__rail-item"><img src="/images/landing/rail-4.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-5.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-6.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-4.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-5.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-6.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+          </div>
+        </div>
+
+        <div class="landing__rail-col landing__rail-col--up landing__rail-col--slow">
+          <div class="landing__rail-track">
+            <figure class="landing__rail-item"><img src="/images/landing/rail-7.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-8.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-9.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-7.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-8.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+            <figure class="landing__rail-item"><img src="/images/landing/rail-9.jpg" alt="Curated fine art piece" loading="lazy"></figure>
+          </div>
+        </div>
+      </aside>
 
       <div class="landing__legal">
         <a href="/privacy-policy" class="landing__legal-link" data-link>Privacy Policy</a>
         <a href="/terms-of-use" class="landing__legal-link" data-link>Terms of Use</a>
         <a href="/data-removal" class="landing__legal-link" data-link>Data Removal</a>
       </div>
+
+      <img
+        class="landing__hero-image"
+        src="/images/landing/hero.jpg"
+        alt="Collector browsing artworks in a gallery-inspired environment"
+        loading="eager"
+      >
     </section>
   `;
 }

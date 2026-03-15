@@ -4,6 +4,10 @@
 import api from './api.js';
 import store from '../utils/state.js';
 
+function hasToken() {
+  return !!localStorage.getItem('access_token');
+}
+
 export async function login(email, password) {
   const data = await api.post('/auth/login', { email, password });
   localStorage.setItem('access_token', data.data.access_token);
@@ -33,14 +37,18 @@ export async function loadCurrentUser() {
     window.dispatchEvent(new Event('auth-changed'));
     return data.data;
   } catch (e) {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
     store.set('isAuthenticated', false);
     store.set('user', null);
+    window.dispatchEvent(new Event('auth-changed'));
     return null;
   }
 }
 
 export function isAuthenticated() {
-  return !!localStorage.getItem('access_token');
+  // Trust validated auth state first; token presence is only a pre-validation hint.
+  return store.get('isAuthenticated') || hasToken();
 }
 
 export function getCurrentUser() {

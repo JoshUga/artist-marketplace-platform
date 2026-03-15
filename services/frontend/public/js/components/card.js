@@ -35,7 +35,7 @@ export function createArtistCard(artist) {
       <h3 class="card__title">${artist.artist_name}</h3>
       ${artist.is_verified ? '<span class="badge badge--secondary"><i class="bi bi-patch-check"></i> Verified</span>' : ''}
       <p class="card__text">${(artist.bio || 'Artist on ArtMarket').substring(0, 80)}</p>
-      <a href="/artists/${artist.id}" class="btn btn--outline btn--sm" data-link>View Profile</a>
+      <a href="/portfolio/${artist.id}" class="btn btn--outline btn--sm" data-link>View Portfolio Site</a>
     </div>
   `;
   return card;

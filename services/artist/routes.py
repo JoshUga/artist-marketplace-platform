@@ -81,6 +81,22 @@ async def list_artists(
     )
 
 
+@router.get("/me", response_model=APIResponse)
+async def get_my_artist_profile(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Artist).where(Artist.user_id == current_user["sub"]))
+    artist = result.scalar_one_or_none()
+    if not artist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
+
+    return APIResponse(
+        success=True,
+        data=ArtistResponse.model_validate(artist).model_dump(),
+    )
+
+
 @router.get("/{artist_id}", response_model=APIResponse)
 async def get_artist(artist_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Artist).where(Artist.id == artist_id))
