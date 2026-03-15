@@ -2,9 +2,11 @@
 import uuid
 from pathlib import Path
 from io import BytesIO
+from html import escape
 
 from PIL import Image, ImageDraw, ImageFont
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from shared.config import get_settings
@@ -379,6 +381,65 @@ async def get_portfolio(
         per_page=per_page,
         total_pages=(total + per_page - 1) // per_page if total > 0 else 0,
     )
+
+
+@router.get("/{artist_id}/portfolio/{item_id}/share/page", response_class=HTMLResponse)
+async def get_portfolio_item_share_page(
+    artist_id: str,
+    item_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    artist_result = await db.execute(select(Artist).where(Artist.id == artist_id))
+    artist = artist_result.scalar_one_or_none()
+    if not artist:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artist not found")
+
+    item_result = await db.execute(
+        select(PortfolioItem).where(PortfolioItem.id == item_id, PortfolioItem.artist_id == artist_id)
+    )
+    item = item_result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio item not found")
+
+    scheme = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or "localhost"
+    origin = f"{scheme}://{host}".rstrip("/")
+    canonical_url = f"{origin}/portfolio/{artist.id}/item/{item.id}"
+    share_url = f"{origin}/share/portfolio/{artist.id}/{item.id}"
+
+    title = (item.title or "Artwork").strip()
+    artist_name = (artist.artist_name or "Artist").strip()
+    description = (item.description or f"Discover {title} by {artist_name} on EliteArt Studio.").strip()[:300]
+    image_url = item.image_url or "https://placehold.co/1200x630/1f1a22/e6ddcf?text=Artist+Portfolio"
+
+    html = f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>{escape(title)} by {escape(artist_name)} | EliteArt Studio</title>
+  <meta name=\"description\" content=\"{escape(description)}\">
+  <link rel=\"canonical\" href=\"{escape(canonical_url)}\">
+  <meta property=\"og:type\" content=\"website\">
+  <meta property=\"og:site_name\" content=\"EliteArt Studio\">
+  <meta property=\"og:title\" content=\"{escape(title)} by {escape(artist_name)}\">
+  <meta property=\"og:description\" content=\"{escape(description)}\">
+  <meta property=\"og:image\" content=\"{escape(image_url)}\">
+  <meta property=\"og:url\" content=\"{escape(share_url)}\">
+  <meta name=\"twitter:card\" content=\"summary_large_image\">
+  <meta name=\"twitter:title\" content=\"{escape(title)} by {escape(artist_name)}\">
+  <meta name=\"twitter:description\" content=\"{escape(description)}\">
+  <meta name=\"twitter:image\" content=\"{escape(image_url)}\">
+  <meta http-equiv=\"refresh\" content=\"0; url={escape(canonical_url)}\">
+</head>
+<body>
+  <p>Redirecting to <a href=\"{escape(canonical_url)}\">{escape(canonical_url)}</a>...</p>
+  <script>window.location.replace({canonical_url!r});</script>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
 
 
 @router.put("/{artist_id}/portfolio/{item_id}", response_model=APIResponse)

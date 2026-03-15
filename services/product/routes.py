@@ -1,5 +1,7 @@
 """Product service API routes."""
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
+from html import escape
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header, Request
+from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
@@ -297,6 +299,99 @@ async def get_product_share_metadata(
             "description": description[:300],
             "canonical_url": canonical_url,
             "image_url": og_image,
+        },
+    )
+
+
+@router.get("/products/{product_id}/share/page", response_class=HTMLResponse)
+async def get_product_share_page(
+    product_id: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    product_result = await db.execute(select(Product).where(Product.id == product_id))
+    product = product_result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+
+    scheme = request.headers.get("x-forwarded-proto") or request.url.scheme or "https"
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or "localhost"
+    origin = f"{scheme}://{host}".rstrip("/")
+    canonical_url = f"{origin}/products/{product.id}"
+    share_url = f"{origin}/share/products/{product.id}"
+
+    title = product.title.strip() or "Artwork"
+    description = (product.description or f"Explore {title} on EliteArt Studio.").strip()[:300]
+    image_url = product.image_url or "https://placehold.co/1200x630/181722/ececf2?text=EliteArt+Studio"
+
+    html = f"""<!DOCTYPE html>
+<html lang=\"en\"> 
+<head>
+  <meta charset=\"utf-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+  <title>{escape(title)} | EliteArt Studio</title>
+  <meta name=\"description\" content=\"{escape(description)}\">
+  <link rel=\"canonical\" href=\"{escape(canonical_url)}\">
+  <meta property=\"og:type\" content=\"website\">
+  <meta property=\"og:site_name\" content=\"EliteArt Studio\">
+  <meta property=\"og:title\" content=\"{escape(title)}\">
+  <meta property=\"og:description\" content=\"{escape(description)}\">
+  <meta property=\"og:image\" content=\"{escape(image_url)}\">
+  <meta property=\"og:url\" content=\"{escape(share_url)}\">
+  <meta name=\"twitter:card\" content=\"summary_large_image\">
+  <meta name=\"twitter:title\" content=\"{escape(title)}\">
+  <meta name=\"twitter:description\" content=\"{escape(description)}\">
+  <meta name=\"twitter:image\" content=\"{escape(image_url)}\">
+  <meta http-equiv=\"refresh\" content=\"0; url={escape(canonical_url)}\">
+</head>
+<body>
+  <p>Redirecting to <a href=\"{escape(canonical_url)}\">{escape(canonical_url)}</a>...</p>
+  <script>window.location.replace({canonical_url!r});</script>
+</body>
+</html>
+"""
+    return HTMLResponse(content=html)
+
+
+@router.get("/products/me/analytics", response_model=APIResponse)
+async def get_my_product_analytics(
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Product).where(Product.artist_id == current_user["sub"]).order_by(Product.created_at.desc())
+    )
+    products = result.scalars().all()
+
+    total_views = sum((product.view_count or 0) for product in products)
+    total_likes = sum((product.likes_count or 0) for product in products)
+    total_comments = sum((product.review_count or 0) for product in products)
+
+    top_products = sorted(
+        products,
+        key=lambda product: (
+            (product.view_count or 0) + ((product.likes_count or 0) * 4) + ((product.review_count or 0) * 6)
+        ),
+        reverse=True,
+    )[:5]
+
+    return APIResponse(
+        success=True,
+        data={
+            "product_count": len(products),
+            "total_views": total_views,
+            "total_likes": total_likes,
+            "total_comments": total_comments,
+            "top_products": [
+                {
+                    "id": item.id,
+                    "title": item.title,
+                    "view_count": item.view_count,
+                    "likes_count": item.likes_count,
+                    "review_count": item.review_count,
+                }
+                for item in top_products
+            ],
         },
     )
 

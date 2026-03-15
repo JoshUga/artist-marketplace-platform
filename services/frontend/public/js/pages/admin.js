@@ -87,14 +87,32 @@ export function renderAdminPage() {
         <section class="workspace__panel" data-panel="analytics">
           <div class="workspace__card">
             <h3>Engagement Analytics</h3>
-            <p>Track visibility, interest, and buyer intent across your portfolio.</p>
-            <div class="workspace__chart">
-              <div style="--h: 42%"></div>
-              <div style="--h: 68%"></div>
-              <div style="--h: 54%"></div>
-              <div style="--h: 82%"></div>
-              <div style="--h: 74%"></div>
-              <div style="--h: 90%"></div>
+            <p>Views, comments, and likes are tracked automatically for each marketplace product.</p>
+            <div class="workspace__stats" id="analytics-stats" style="margin-top: var(--spacing-md);">
+              <article class="workspace__stat-card">
+                <span>Total Views</span>
+                <strong id="analytics-views">--</strong>
+                <small>Across all your products</small>
+              </article>
+              <article class="workspace__stat-card">
+                <span>Total Likes</span>
+                <strong id="analytics-likes">--</strong>
+                <small>From collectors</small>
+              </article>
+              <article class="workspace__stat-card">
+                <span>Total Comments</span>
+                <strong id="analytics-comments">--</strong>
+                <small>Reviews and feedback</small>
+              </article>
+            </div>
+            <div id="analytics-top-products" style="margin-top: var(--spacing-lg);" class="workspace__content-grid"></div>
+            <div class="workspace__chart" style="margin-top: var(--spacing-lg);">
+              <div style="--h: 34%"></div>
+              <div style="--h: 46%"></div>
+              <div style="--h: 59%"></div>
+              <div style="--h: 77%"></div>
+              <div style="--h: 62%"></div>
+              <div style="--h: 86%"></div>
             </div>
           </div>
         </section>
@@ -198,6 +216,8 @@ export function renderAdminPage() {
           </button>
         </div>
         <form class="workspace__form" id="content-form">
+          <input id="content-item-id" type="hidden" value="">
+          <input id="content-existing-image-url" type="hidden" value="">
           <div class="form-group">
             <label class="form-label" for="art-title">Title</label>
             <input id="art-title" class="form-input" required placeholder="Midnight Study No. 4">
@@ -264,6 +284,12 @@ export function renderAdminPage() {
   const inboxList = document.getElementById('workspace-inbox-list');
   const contentForm = document.getElementById('content-form');
   const contentSubmitBtn = document.getElementById('content-submit-btn');
+  const contentItemIdInput = document.getElementById('content-item-id');
+  const contentExistingImageUrlInput = document.getElementById('content-existing-image-url');
+  const analyticsViews = document.getElementById('analytics-views');
+  const analyticsLikes = document.getElementById('analytics-likes');
+  const analyticsComments = document.getElementById('analytics-comments');
+  const analyticsTopProducts = document.getElementById('analytics-top-products');
   const richDescriptionEditor = document.getElementById('art-description-editor');
   const richDescriptionSource = document.getElementById('art-description-html');
   const richDescriptionButtons = Array.from(document.querySelectorAll('[data-rich-command]'));
@@ -282,6 +308,7 @@ export function renderAdminPage() {
   const closeDrawerBtn = document.getElementById('content-drawer-close');
   const logoutBtn = document.getElementById('workspace-logout-btn');
   let artistProfile = null;
+  let portfolioItems = [];
   let selectedProfilePreviewUrl = null;
   let selectedImagePreviewUrl = null;
 
@@ -409,12 +436,53 @@ export function renderAdminPage() {
     profileUploadPreview.classList.add('is-visible');
   };
 
+  const resetContentFormState = () => {
+    if (contentForm) contentForm.reset();
+    setSelectedImageFile(null);
+    if (richDescriptionEditor) richDescriptionEditor.innerHTML = '';
+    if (richDescriptionSource) richDescriptionSource.value = '';
+    const availabilityInput = document.getElementById('art-availability');
+    if (availabilityInput) availabilityInput.value = 'digital';
+    if (contentItemIdInput) contentItemIdInput.value = '';
+    if (contentExistingImageUrlInput) contentExistingImageUrlInput.value = '';
+
+    const drawerEyebrow = drawer?.querySelector('.workspace__eyebrow');
+    const drawerTitle = drawer?.querySelector('h3');
+    if (drawerEyebrow) drawerEyebrow.textContent = 'New Content';
+    if (drawerTitle) drawerTitle.textContent = 'Add Artwork';
+    if (contentSubmitBtn) contentSubmitBtn.innerHTML = 'Publish to Content Library';
+  };
+
   const openDrawer = () => {
     if (!artistProfile?.id) {
       activatePanel('profile');
       showToast('Complete your artist profile before adding content.', 'info');
       return;
     }
+
+    resetContentFormState();
+    activatePanel('content');
+    drawer?.classList.add('is-open');
+    drawerBackdrop?.classList.add('is-open');
+    drawer?.setAttribute('aria-hidden', 'false');
+    document.getElementById('art-title')?.focus();
+  };
+
+  const openEditDrawer = (item) => {
+    if (!item) return;
+    if (contentItemIdInput) contentItemIdInput.value = item.id;
+    if (contentExistingImageUrlInput) contentExistingImageUrlInput.value = item.image_url || '';
+
+    document.getElementById('art-title').value = item.title || '';
+    document.getElementById('art-availability').value = item.availability || 'digital';
+    if (richDescriptionEditor) richDescriptionEditor.innerHTML = item.description || '';
+    if (richDescriptionSource) richDescriptionSource.value = item.description || '';
+
+    const drawerEyebrow = drawer?.querySelector('.workspace__eyebrow');
+    const drawerTitle = drawer?.querySelector('h3');
+    if (drawerEyebrow) drawerEyebrow.textContent = 'Edit Content';
+    if (drawerTitle) drawerTitle.textContent = 'Update Artwork';
+    if (contentSubmitBtn) contentSubmitBtn.innerHTML = 'Save Content Changes';
 
     activatePanel('content');
     drawer?.classList.add('is-open');
@@ -539,6 +607,7 @@ export function renderAdminPage() {
   });
 
   const renderContentItems = (items = []) => {
+    portfolioItems = items;
     if (!contentGrid) return;
     if (!items.length) {
       contentGrid.innerHTML = `
@@ -564,6 +633,14 @@ export function renderAdminPage() {
             <h4><a href="/portfolio/${item.artist_id}/item/${item.id}" data-link>${item.title}</a></h4>
             <div class="workspace__content-description">${item.description || '<p>No description added yet.</p>'}</div>
             <small>Type: ${item.availability === 'physical' ? 'Physical copy' : 'Digital art'}</small>
+            <div style="display: flex; gap: var(--spacing-xs); flex-wrap: wrap; margin-top: var(--spacing-sm);">
+              <button class="btn btn--outline btn--sm" type="button" data-content-edit="${item.id}">
+                <i class="bi bi-pencil-square"></i> Edit
+              </button>
+              <button class="btn btn--ghost btn--sm" type="button" data-content-delete="${item.id}">
+                <i class="bi bi-trash3"></i> Delete
+              </button>
+            </div>
           </div>
         </article>
       `)
@@ -638,6 +715,68 @@ export function renderAdminPage() {
       .join('');
   };
 
+  const renderAnalytics = async () => {
+    if (!analyticsViews || !analyticsLikes || !analyticsComments || !analyticsTopProducts) return;
+
+    analyticsViews.textContent = '--';
+    analyticsLikes.textContent = '--';
+    analyticsComments.textContent = '--';
+    analyticsTopProducts.innerHTML = `
+      <article class="workspace__content-card workspace__content-card--empty">
+        <div class="workspace__content-meta">
+          <h4>Loading engagement stats...</h4>
+          <p>Collecting views, likes, and comments across your products.</p>
+        </div>
+      </article>
+    `;
+
+    try {
+      const response = await api.get('/products/me/analytics');
+      const data = response.data || {};
+
+      analyticsViews.textContent = String(data.total_views || 0);
+      analyticsLikes.textContent = String(data.total_likes || 0);
+      analyticsComments.textContent = String(data.total_comments || 0);
+
+      const topProducts = Array.isArray(data.top_products) ? data.top_products : [];
+      if (!topProducts.length) {
+        analyticsTopProducts.innerHTML = `
+          <article class="workspace__content-card workspace__content-card--empty">
+            <div class="workspace__content-meta">
+              <h4>No tracked product engagement yet</h4>
+              <p>Publish products and share them to start collecting views, likes, and comments.</p>
+            </div>
+          </article>
+        `;
+        return;
+      }
+
+      analyticsTopProducts.innerHTML = topProducts
+        .map((item) => `
+          <article class="workspace__content-card">
+            <div class="workspace__content-meta">
+              <h4>${escapeHtml(item.title || 'Untitled')}</h4>
+              <small>
+                <i class="bi bi-eye"></i> ${item.view_count || 0}
+                &nbsp;&nbsp; <i class="bi bi-heart"></i> ${item.likes_count || 0}
+                &nbsp;&nbsp; <i class="bi bi-chat-dots"></i> ${item.review_count || 0}
+              </small>
+            </div>
+          </article>
+        `)
+        .join('');
+    } catch (error) {
+      analyticsTopProducts.innerHTML = `
+        <article class="workspace__content-card workspace__content-card--empty">
+          <div class="workspace__content-meta">
+            <h4>Analytics unavailable right now</h4>
+            <p>Could not fetch tracked engagement metrics. Please try again shortly.</p>
+          </div>
+        </article>
+      `;
+    }
+  };
+
   const loadArtistProfile = async () => {
     try {
       const response = await api.get('/artists/me');
@@ -674,6 +813,12 @@ export function renderAdminPage() {
             </div>
           </article>
         `;
+        if (analyticsTopProducts) {
+          analyticsTopProducts.innerHTML = '';
+        }
+        if (analyticsViews) analyticsViews.textContent = '0';
+        if (analyticsLikes) analyticsLikes.textContent = '0';
+        if (analyticsComments) analyticsComments.textContent = '0';
         renderInboxMessages([]);
         activatePanel('profile');
         return;
@@ -681,6 +826,7 @@ export function renderAdminPage() {
 
       const portfolioResponse = await api.get(`/artists/${artistProfile.id}/portfolio?per_page=100`);
       renderContentItems(portfolioResponse.data || []);
+      await renderAnalytics();
 
       try {
         const messagesResponse = await api.get(`/artists/${artistProfile.id}/messages?per_page=100`);
@@ -701,6 +847,45 @@ export function renderAdminPage() {
       renderInboxMessages([]);
     }
   };
+
+  contentGrid?.addEventListener('click', async (event) => {
+    const editButton = event.target.closest('[data-content-edit]');
+    const deleteButton = event.target.closest('[data-content-delete]');
+
+    if (editButton) {
+      const itemId = editButton.getAttribute('data-content-edit');
+      const item = portfolioItems.find((entry) => String(entry.id) === String(itemId));
+      if (!item) {
+        showToast('Could not find that content item.', 'warning');
+        return;
+      }
+      openEditDrawer(item);
+      return;
+    }
+
+    if (deleteButton) {
+      const itemId = deleteButton.getAttribute('data-content-delete');
+      const item = portfolioItems.find((entry) => String(entry.id) === String(itemId));
+      if (!item || !artistProfile?.id) {
+        showToast('Could not find that content item.', 'warning');
+        return;
+      }
+
+      const shouldDelete = window.confirm(`Delete \"${item.title}\" from your portfolio?`);
+      if (!shouldDelete) return;
+
+      deleteButton.disabled = true;
+      try {
+        await api.delete(`/artists/${artistProfile.id}/portfolio/${item.id}`);
+        showToast('Content deleted.', 'success');
+        await loadContentItems();
+      } catch (error) {
+        showToast(error.message || 'Failed to delete content.', 'error');
+      } finally {
+        deleteButton.disabled = false;
+      }
+    }
+  });
 
   openPortfolioBtn?.addEventListener('click', async () => {
     if (!artistProfile?.id) {
@@ -786,46 +971,63 @@ export function renderAdminPage() {
     const imageFile = document.getElementById('art-image-file')?.files?.[0] || null;
     const availability = document.getElementById('art-availability')?.value || 'digital';
     const richDescriptionHtml = richDescriptionSource?.value?.trim() || richDescriptionEditor?.innerHTML?.trim() || '';
+    const editingItemId = contentItemIdInput?.value?.trim() || '';
+    const existingImageUrl = contentExistingImageUrlInput?.value?.trim() || '';
 
-    if (!title || !imageFile) {
-      showToast('Title and uploaded image are required.', 'error');
+    if (!title) {
+      showToast('Title is required.', 'error');
+      return;
+    }
+
+    if (!editingItemId && !imageFile) {
+      showToast('Uploaded image is required for new content.', 'error');
       return;
     }
 
     contentSubmitBtn.disabled = true;
-    contentSubmitBtn.innerHTML = '<span class="spinner"></span> Publishing...';
+    contentSubmitBtn.innerHTML = editingItemId ? '<span class="spinner"></span> Saving...' : '<span class="spinner"></span> Publishing...';
 
     try {
-      const formData = new FormData();
-      formData.append('file', imageFile);
+      let finalImageUrl = existingImageUrl || null;
 
-      const uploadResponse = await api.post(`/artists/${artistProfile.id}/portfolio/upload`, formData);
-      const finalImageUrl = uploadResponse?.data?.image_url;
+      if (imageFile) {
+        const formData = new FormData();
+        formData.append('file', imageFile);
+
+        const uploadResponse = await api.post(`/artists/${artistProfile.id}/portfolio/upload`, formData);
+        finalImageUrl = uploadResponse?.data?.image_url;
+      }
 
       if (!finalImageUrl) {
         throw new Error('Image upload failed. Please try again.');
       }
 
-      await api.post(`/artists/${artistProfile.id}/portfolio`, {
+      const payload = {
         title,
         image_url: finalImageUrl,
         availability,
         description: richDescriptionHtml || null,
-      });
+      };
 
-      showToast('Content published to your portfolio site.', 'success');
-      contentForm.reset();
-      setSelectedImageFile(null);
-      if (richDescriptionEditor) richDescriptionEditor.innerHTML = '';
-      if (richDescriptionSource) richDescriptionSource.value = '';
-      document.getElementById('art-availability').value = 'digital';
+      if (editingItemId) {
+        await api.put(`/artists/${artistProfile.id}/portfolio/${editingItemId}`, payload);
+      } else {
+        await api.post(`/artists/${artistProfile.id}/portfolio`, payload);
+      }
+
+      showToast(editingItemId ? 'Content updated successfully.' : 'Content published to your portfolio site.', 'success');
+      resetContentFormState();
       closeDrawer();
       await loadContentItems();
     } catch (error) {
-      showToast(error.message || 'Failed to publish content.', 'error');
+      showToast(error.message || 'Failed to save content.', 'error');
     } finally {
       contentSubmitBtn.disabled = false;
-      contentSubmitBtn.innerHTML = 'Publish to Content Library';
+      if (contentItemIdInput?.value) {
+        contentSubmitBtn.innerHTML = 'Save Content Changes';
+      } else {
+        contentSubmitBtn.innerHTML = 'Publish to Content Library';
+      }
     }
   });
 

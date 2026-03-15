@@ -212,3 +212,40 @@ class TestProductEngagement:
         share_data = share_resp.json()["data"]
         assert share_data["title"] == "Share Ready Product"
         assert f"/products/{product_id}" in share_data["canonical_url"]
+
+    async def test_share_page_returns_html(self, product_client):
+        headers = get_auth_headers(user_id="share-page-creator")
+        create_resp = await product_client.post("/products", json={
+            "title": "Share Page Product",
+            "description": "Server rendered OG page test",
+            "price": 145.0,
+        }, headers=headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        share_page_resp = await product_client.get(f"/products/{product_id}/share/page")
+        assert share_page_resp.status_code == 200
+        assert "text/html" in share_page_resp.headers["content-type"]
+        assert "og:title" in share_page_resp.text
+
+    async def test_my_analytics_counts(self, product_client):
+        headers = get_auth_headers(user_id="analytics-artist")
+        create_resp = await product_client.post("/products", json={
+            "title": "Analytics Product",
+            "price": 65.0,
+        }, headers=headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        await product_client.get(f"/products/{product_id}")
+        await product_client.post(f"/products/{product_id}/likes", headers=headers)
+        await product_client.post(f"/products/{product_id}/reviews", json={
+            "rating": 4,
+            "comment": "Great work.",
+        }, headers=headers)
+
+        analytics_resp = await product_client.get("/products/me/analytics", headers=headers)
+        assert analytics_resp.status_code == 200
+        data = analytics_resp.json()["data"]
+        assert data["product_count"] >= 1
+        assert data["total_views"] >= 1
+        assert data["total_likes"] >= 1
+        assert data["total_comments"] >= 1

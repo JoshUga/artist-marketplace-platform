@@ -52,6 +52,7 @@ function getShareLinks(url, title) {
 
   return [
     { label: 'Facebook', icon: 'bi-facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { label: 'TikTok', icon: 'bi-tiktok', href: 'https://www.tiktok.com/', requiresCopy: true },
     { label: 'WhatsApp', icon: 'bi-whatsapp', href: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}` },
     { label: 'Twitter/X', icon: 'bi-twitter-x', href: `https://twitter.com/intent/tweet?text=${encodedTitle}&url=${encodedUrl}` },
     { label: 'LinkedIn', icon: 'bi-linkedin', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
@@ -84,7 +85,7 @@ export async function renderProductDetailPage(params) {
     const engagement = engagementData.data;
     setProductMeta(product);
 
-    const productUrl = window.location.href;
+    const productUrl = `${window.location.origin}/share/products/${product.id}`;
     const shareLinks = getShareLinks(productUrl, product.title);
     const reviewsMarkup = (engagement.reviews || [])
       .map((review) => `
@@ -142,7 +143,7 @@ export async function renderProductDetailPage(params) {
                 ${shareLinks
                   .map(
                     (link) => `
-                      <a class="btn btn--outline btn--sm" href="${link.href}" target="_blank" rel="noopener noreferrer">
+                      <a class="btn btn--outline btn--sm" href="${link.href}" target="_blank" rel="noopener noreferrer" ${link.requiresCopy ? 'data-share-copy="true"' : ''}>
                         <i class="bi ${link.icon}"></i> ${link.label}
                       </a>
                     `
@@ -218,10 +219,22 @@ export async function renderProductDetailPage(params) {
     document.getElementById('copy-link-btn')?.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(productUrl);
-        showToast('Product link copied.', 'success');
+        showToast('Share link copied.', 'success');
       } catch (error) {
         showToast('Could not copy link. Copy it manually from the address bar.', 'warning');
       }
+    });
+
+    Array.from(document.querySelectorAll('[data-share-copy="true"]')).forEach((element) => {
+      element.addEventListener('click', async () => {
+        const shareText = `${product.title} on EliteArt Studio\n${productUrl}`;
+        try {
+          await navigator.clipboard.writeText(shareText);
+          showToast('Artwork link and caption copied for TikTok paste.', 'success');
+        } catch (error) {
+          showToast('Could not copy TikTok caption automatically.', 'warning');
+        }
+      });
     });
 
     document.getElementById('native-share-btn')?.addEventListener('click', async () => {

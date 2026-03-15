@@ -77,6 +77,23 @@ function normalizeImageUrl(value) {
   return normalized;
 }
 
+function getPortfolioShareUrl(artistId, itemId) {
+  return `${window.location.origin}/share/portfolio/${artistId}/${itemId}`;
+}
+
+function getPortfolioShareLinks(shareUrl, title, artistName) {
+  const text = `${title} by ${artistName} on EliteArt Studio`;
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent(text);
+  return [
+    { label: 'Facebook', icon: 'bi-facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { label: 'TikTok', icon: 'bi-tiktok', href: 'https://www.tiktok.com/', requiresCopy: true },
+    { label: 'Twitter/X', icon: 'bi-twitter-x', href: `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}` },
+    { label: 'LinkedIn', icon: 'bi-linkedin', href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}` },
+    { label: 'WhatsApp', icon: 'bi-whatsapp', href: `https://wa.me/?text=${encodedText}%20${encodedUrl}` },
+  ];
+}
+
 function createTopNavigation(artistId, activeSection) {
   return NAV_SECTIONS.map((section) => {
     const isActive = section === activeSection;
@@ -284,6 +301,9 @@ function renderItemDetailSection(artist, item) {
     `;
   }
 
+  const shareUrl = getPortfolioShareUrl(artist.id, item.id);
+  const shareLinks = getPortfolioShareLinks(shareUrl, item.title, artist.artist_name);
+
   return `
     <section class="portfolio-site__section animate-fade-in">
       <div class="portfolio-site__section-head">
@@ -296,7 +316,14 @@ function renderItemDetailSection(artist, item) {
         <p class="portfolio-site__muted">Availability: ${item.availability === 'physical' ? 'Physical copy available' : 'Digital art'}</p>
         <div style="display: flex; gap: var(--spacing-sm); flex-wrap: wrap;">
           <a href="/portfolio/${artist.id}/gallery" class="btn btn--outline" data-link><i class="bi bi-grid-3x3-gap"></i> Back to Gallery</a>
-          <button class="btn btn--primary" type="button" id="copy-portfolio-item-link"><i class="bi bi-link-45deg"></i> Copy Link</button>
+          <button class="btn btn--primary" type="button" id="copy-portfolio-item-link" data-share-url="${shareUrl}"><i class="bi bi-link-45deg"></i> Copy Link</button>
+        </div>
+        <div style="display: grid; gap: var(--spacing-xs); grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+          ${shareLinks.map((link) => `
+            <a class="btn btn--outline btn--sm" href="${link.href}" target="_blank" rel="noopener noreferrer" ${link.requiresCopy ? 'data-share-copy="true"' : ''} data-share-url="${shareUrl}" data-share-title="${item.title}">
+              <i class="bi ${link.icon}"></i> ${link.label}
+            </a>
+          `).join('')}
         </div>
       </article>
     </section>
@@ -439,12 +466,27 @@ export async function renderArtistDetailPage(params) {
 
     const copyButton = document.getElementById('copy-portfolio-item-link');
     copyButton?.addEventListener('click', async () => {
+      const shareUrl = copyButton.getAttribute('data-share-url') || window.location.href;
       try {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         showToast('Artwork link copied.', 'success');
       } catch {
         showToast('Could not copy link from this browser.', 'warning');
       }
+    });
+
+    Array.from(document.querySelectorAll('[data-share-copy="true"]')).forEach((element) => {
+      element.addEventListener('click', async () => {
+        const shareUrl = element.getAttribute('data-share-url') || window.location.href;
+        const shareTitle = element.getAttribute('data-share-title') || 'Artwork';
+        const caption = `${shareTitle} by ${artist.artist_name} on EliteArt Studio\n${shareUrl}`;
+        try {
+          await navigator.clipboard.writeText(caption);
+          showToast('Artwork link and caption copied for TikTok paste.', 'success');
+        } catch {
+          showToast('Could not copy TikTok caption automatically.', 'warning');
+        }
+      });
     });
   } catch (error) {
     app.innerHTML = `

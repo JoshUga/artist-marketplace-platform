@@ -141,6 +141,25 @@ class TestPortfolio:
         assert response.status_code == 200
         assert response.json()["message"] == "Portfolio item deleted"
 
+    async def test_portfolio_item_share_page(self, artist_client):
+        headers = get_auth_headers(user_id="portfolio-share-user")
+        reg_resp = await artist_client.post("/artists/register", json={
+            "artist_name": "Share Artist",
+        }, headers=headers)
+        artist_id = reg_resp.json()["data"]["id"]
+
+        item_resp = await artist_client.post(f"/artists/{artist_id}/portfolio", json={
+            "title": "Share Item",
+            "description": "Item with OG share page",
+            "image_url": "https://example.com/share-item.jpg",
+        }, headers=headers)
+        item_id = item_resp.json()["data"]["id"]
+
+        share_resp = await artist_client.get(f"/artists/{artist_id}/portfolio/{item_id}/share/page")
+        assert share_resp.status_code == 200
+        assert "text/html" in share_resp.headers["content-type"]
+        assert "og:title" in share_resp.text
+
 
 class TestHealthCheck:
     async def test_health(self, artist_client):
