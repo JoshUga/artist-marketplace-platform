@@ -102,9 +102,11 @@ class TestPortfolio:
             "title": "My Painting",
             "description": "A beautiful painting",
             "image_url": "https://example.com/painting.jpg",
+            "availability": "physical",
         }, headers=headers)
         assert response.status_code == 201
         assert response.json()["data"]["title"] == "My Painting"
+        assert response.json()["data"]["availability"] == "physical"
 
     async def test_get_portfolio(self, artist_client):
         headers = get_auth_headers(user_id="portfolio-get-user")
@@ -145,3 +147,20 @@ class TestHealthCheck:
         response = await artist_client.get("/health")
         assert response.status_code == 200
         assert response.json()["service"] == "artist-service"
+
+
+class TestContactMessages:
+    async def test_create_contact_message_alias(self, artist_client):
+        headers = get_auth_headers(user_id="contact-user")
+        reg_resp = await artist_client.post("/artists/register", json={
+            "artist_name": "Contact Artist",
+        }, headers=headers)
+        artist_id = reg_resp.json()["data"]["id"]
+
+        response = await artist_client.post(f"/artists/{artist_id}/messages", json={
+            "sender_name": "Collector One",
+            "sender_email": "collector@example.com",
+            "message": "Interested in this piece",
+        })
+        assert response.status_code == 201
+        assert response.json()["success"] is True

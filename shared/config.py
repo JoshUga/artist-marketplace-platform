@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # API Gateway
     API_GATEWAY_URL: str = "http://gateway:80"
 
+    # Image CDN / processing
+    IMAGE_CDN_BASE_URL: str = "/img/unsafe"
+    IMAGE_ORIGIN_BASE_URL: str = "http://gateway.local/media"
+    ARTIST_MEDIA_DIR: str = "./services/artist/media"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

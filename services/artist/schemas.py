@@ -1,6 +1,6 @@
 """Artist service Pydantic schemas."""
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 
 
@@ -43,6 +43,7 @@ class PortfolioItemCreate(BaseModel):
     title: str
     description: Optional[str] = None
     image_url: str
+    availability: Literal["digital", "physical"] = "digital"
     sort_order: int = 0
 
 
@@ -50,6 +51,7 @@ class PortfolioItemUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     image_url: Optional[str] = None
+    availability: Optional[Literal["digital", "physical"]] = None
     sort_order: Optional[int] = None
 
 
@@ -59,7 +61,26 @@ class PortfolioItemResponse(BaseModel):
     title: str
     description: Optional[str] = None
     image_url: str
+    availability: Literal["digital", "physical"]
     sort_order: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ContactMessageCreate(BaseModel):
+    sender_name: str
+    sender_email: str
+    message: str
+
+
+class ContactMessageResponse(BaseModel):
+    id: str
+    artist_id: str
+    sender_name: str
+    sender_email: str
+    message: str
     created_at: datetime
 
     class Config:

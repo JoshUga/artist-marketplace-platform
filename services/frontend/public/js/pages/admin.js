@@ -117,8 +117,19 @@ export function renderAdminPage() {
               </div>
               <div class="workspace-profile__grid">
                 <div class="form-group">
-                  <label class="form-label" for="profile-image-url">Profile Image URL</label>
-                  <input id="profile-image-url" type="url" class="form-input" placeholder="https://images.example.com/portrait.jpg">
+                  <label class="form-label" for="profile-image-file">Profile Picture</label>
+                  <div class="upload-dropzone upload-dropzone--profile" id="profile-upload-dropzone" role="button" tabindex="0" aria-describedby="profile-upload-hint profile-upload-file-name">
+                    <input id="profile-image-file" type="file" class="upload-dropzone__input" accept="image/*">
+                    <div class="upload-dropzone__preview" id="profile-upload-preview" aria-hidden="true">
+                      <img id="profile-upload-preview-image" alt="Selected profile image preview">
+                    </div>
+                    <div class="upload-dropzone__icon" aria-hidden="true">
+                      <i class="bi bi-person-bounding-box"></i>
+                    </div>
+                    <p class="upload-dropzone__title">Drop profile photo or click to browse</p>
+                    <p class="upload-dropzone__hint" id="profile-upload-hint">PNG, JPG, WEBP, GIF</p>
+                    <p class="upload-dropzone__file" id="profile-upload-file-name">No file selected</p>
+                  </div>
                 </div>
                 <div class="form-group">
                   <label class="form-label" for="profile-website">Website</label>
@@ -168,10 +179,8 @@ export function renderAdminPage() {
         <section class="workspace__panel" data-panel="inbox">
           <div class="workspace__card">
             <h3>Buyer Inbox</h3>
-            <ul class="workspace__inbox">
-              <li><strong>Alex M.</strong> asked about a custom variation for Drift in Copper Light.</li>
-              <li><strong>Sophia R.</strong> requested a private preview of your next release.</li>
-              <li><strong>Daniel K.</strong> confirmed commission budget and timeline details.</li>
+            <ul class="workspace__inbox" id="workspace-inbox-list">
+              <li>Loading messages...</li>
             </ul>
           </div>
         </section>
@@ -194,16 +203,43 @@ export function renderAdminPage() {
             <input id="art-title" class="form-input" required placeholder="Midnight Study No. 4">
           </div>
           <div class="form-group">
-            <label class="form-label" for="art-image-url">Image URL</label>
-            <input id="art-image-url" type="url" class="form-input" required placeholder="https://images.example.com/artwork.jpg">
+            <label class="form-label" for="art-image-file">Upload Artwork Image</label>
+            <div class="upload-dropzone" id="art-upload-dropzone" role="button" tabindex="0" aria-describedby="art-upload-hint art-upload-file-name">
+              <input id="art-image-file" type="file" class="upload-dropzone__input" accept="image/*">
+              <div class="upload-dropzone__preview" id="art-upload-preview" aria-hidden="true">
+                <img id="art-upload-preview-image" alt="Selected artwork preview">
+              </div>
+              <div class="upload-dropzone__icon" aria-hidden="true">
+                <i class="bi bi-cloud-arrow-up"></i>
+              </div>
+              <p class="upload-dropzone__title">Drop image here or click to browse</p>
+              <p class="upload-dropzone__hint" id="art-upload-hint">PNG, JPG, WEBP, GIF</p>
+              <p class="upload-dropzone__file" id="art-upload-file-name">No file selected</p>
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label" for="art-sort-order">Display Order</label>
-            <input id="art-sort-order" type="number" min="0" step="1" class="form-input" value="0">
+            <p class="form-label">Artwork source</p>
+            <p class="upload-dropzone__hint">Artwork image must be uploaded. External image URLs are disabled.</p>
           </div>
           <div class="form-group">
-            <label class="form-label" for="art-description">Description</label>
-            <textarea id="art-description" class="form-textarea" placeholder="Share context behind this piece..."></textarea>
+            <label class="form-label" for="art-availability">Availability</label>
+            <select id="art-availability" class="form-input">
+              <option value="digital">Digital art</option>
+              <option value="physical">Physical copy available</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <div class="rich-editor" id="art-description-editor" contenteditable="true" data-placeholder="Write a rich description for this piece..."></div>
+            <div class="rich-editor__toolbar" role="toolbar" aria-label="Description formatting">
+              <button type="button" class="rich-editor__btn" data-rich-command="bold"><i class="bi bi-type-bold"></i></button>
+              <button type="button" class="rich-editor__btn" data-rich-command="italic"><i class="bi bi-type-italic"></i></button>
+              <button type="button" class="rich-editor__btn" data-rich-command="underline"><i class="bi bi-type-underline"></i></button>
+              <button type="button" class="rich-editor__btn" data-rich-command="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
+              <button type="button" class="rich-editor__btn" data-rich-command="insertOrderedList"><i class="bi bi-list-ol"></i></button>
+            </div>
+            <label class="form-label" for="art-description-html">HTML/CSS Source (optional)</label>
+            <textarea id="art-description-html" class="form-textarea rich-editor__source" placeholder="Optional raw HTML/CSS for this description"></textarea>
           </div>
           <button class="btn btn--primary btn--block" type="submit" id="content-submit-btn">Publish to Content Library</button>
         </form>
@@ -225,13 +261,47 @@ export function renderAdminPage() {
   const profileForm = document.getElementById('profile-form');
   const profileSaveBtn = document.getElementById('profile-save-btn');
   const profilePreviewList = document.getElementById('profile-preview-list');
+  const inboxList = document.getElementById('workspace-inbox-list');
   const contentForm = document.getElementById('content-form');
   const contentSubmitBtn = document.getElementById('content-submit-btn');
+  const richDescriptionEditor = document.getElementById('art-description-editor');
+  const richDescriptionSource = document.getElementById('art-description-html');
+  const richDescriptionButtons = Array.from(document.querySelectorAll('[data-rich-command]'));
+  const profileImageInput = document.getElementById('profile-image-file');
+  const profileUploadDropzone = document.getElementById('profile-upload-dropzone');
+  const profileUploadFileName = document.getElementById('profile-upload-file-name');
+  const profileUploadPreview = document.getElementById('profile-upload-preview');
+  const profileUploadPreviewImage = document.getElementById('profile-upload-preview-image');
+  const imageFileInput = document.getElementById('art-image-file');
+  const uploadDropzone = document.getElementById('art-upload-dropzone');
+  const uploadFileName = document.getElementById('art-upload-file-name');
+  const uploadPreview = document.getElementById('art-upload-preview');
+  const uploadPreviewImage = document.getElementById('art-upload-preview-image');
   const drawer = document.getElementById('content-drawer');
   const drawerBackdrop = document.getElementById('content-drawer-backdrop');
   const closeDrawerBtn = document.getElementById('content-drawer-close');
   const logoutBtn = document.getElementById('workspace-logout-btn');
   let artistProfile = null;
+  let selectedProfilePreviewUrl = null;
+  let selectedImagePreviewUrl = null;
+
+  const normalizeImageUrl = (value) => {
+    if (!value || typeof value !== 'string') return value;
+    let normalized = value.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8888\/unsafe\//i, '/img/unsafe/');
+
+    const encodedSourceMatch = normalized.match(/^(\/img\/unsafe\/)(http%3A.*)$/i);
+    if (encodedSourceMatch) {
+      try {
+        normalized = `${encodedSourceMatch[1]}${decodeURIComponent(encodedSourceMatch[2])}`;
+      } catch {
+        return normalized;
+      }
+    }
+
+    normalized = normalized.replace('/img/unsafe/http://gateway/', '/img/unsafe/http://gateway.local/');
+
+    return normalized;
+  };
 
   const activatePanel = (panelName) => {
     panelButtons.forEach((button) => {
@@ -255,6 +325,88 @@ export function renderAdminPage() {
     drawer?.classList.remove('is-open');
     drawerBackdrop?.classList.remove('is-open');
     drawer?.setAttribute('aria-hidden', 'true');
+  };
+
+  const setSelectedImageFile = (file) => {
+    if (!imageFileInput || !uploadFileName) return;
+
+    if (selectedImagePreviewUrl) {
+      URL.revokeObjectURL(selectedImagePreviewUrl);
+      selectedImagePreviewUrl = null;
+    }
+
+    if (!file) {
+      imageFileInput.value = '';
+      uploadFileName.textContent = 'No file selected';
+      uploadDropzone?.classList.remove('has-file');
+      uploadPreview?.classList.remove('is-visible');
+      if (uploadPreviewImage) uploadPreviewImage.src = '';
+      return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    imageFileInput.files = dataTransfer.files;
+    uploadFileName.textContent = `Selected: ${file.name}`;
+    uploadDropzone?.classList.add('has-file');
+
+    selectedImagePreviewUrl = URL.createObjectURL(file);
+    if (uploadPreviewImage) {
+      uploadPreviewImage.src = selectedImagePreviewUrl;
+    }
+    uploadPreview?.classList.add('is-visible');
+  };
+
+  const setSelectedProfileImageFile = (file) => {
+    if (!profileImageInput || !profileUploadFileName) return;
+
+    if (selectedProfilePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedProfilePreviewUrl);
+    }
+    selectedProfilePreviewUrl = null;
+
+    if (!file) {
+      profileImageInput.value = '';
+      profileUploadFileName.textContent = 'No file selected';
+      profileUploadDropzone?.classList.remove('has-file');
+      profileUploadPreview?.classList.remove('is-visible');
+      if (profileUploadPreviewImage) profileUploadPreviewImage.src = '';
+      return;
+    }
+
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    profileImageInput.files = dataTransfer.files;
+    profileUploadFileName.textContent = `Selected: ${file.name}`;
+    profileUploadDropzone?.classList.add('has-file');
+
+    selectedProfilePreviewUrl = URL.createObjectURL(file);
+    if (profileUploadPreviewImage) {
+      profileUploadPreviewImage.src = selectedProfilePreviewUrl;
+    }
+    profileUploadPreview?.classList.add('is-visible');
+  };
+
+  const showExistingProfileImage = (url) => {
+    if (!profileUploadPreview || !profileUploadPreviewImage || !profileUploadFileName) return;
+
+    if (selectedProfilePreviewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(selectedProfilePreviewUrl);
+    }
+    selectedProfilePreviewUrl = url || null;
+
+    if (!url) {
+      profileUploadFileName.textContent = 'No file selected';
+      profileUploadDropzone?.classList.remove('has-file');
+      profileUploadPreview.classList.remove('is-visible');
+      profileUploadPreviewImage.src = '';
+      return;
+    }
+
+    profileUploadFileName.textContent = 'Current profile image';
+    profileUploadDropzone?.classList.add('has-file');
+    profileUploadPreviewImage.src = url;
+    profileUploadPreview.classList.add('is-visible');
   };
 
   const openDrawer = () => {
@@ -285,6 +437,107 @@ export function renderAdminPage() {
     }
   });
 
+  imageFileInput?.addEventListener('change', () => {
+    const selectedFile = imageFileInput.files?.[0] || null;
+    setSelectedImageFile(selectedFile);
+  });
+
+  uploadDropzone?.addEventListener('click', () => {
+    imageFileInput?.click();
+  });
+
+  uploadDropzone?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      imageFileInput?.click();
+    }
+  });
+
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    uploadDropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      uploadDropzone.classList.add('is-dragover');
+    });
+  });
+
+  ['dragleave', 'dragend'].forEach((eventName) => {
+    uploadDropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      uploadDropzone.classList.remove('is-dragover');
+    });
+  });
+
+  uploadDropzone?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    uploadDropzone.classList.remove('is-dragover');
+
+    const droppedFiles = Array.from(event.dataTransfer?.files || []);
+    const imageFile = droppedFiles.find((file) => file.type.startsWith('image/'));
+
+    if (!imageFile) {
+      showToast('Please drop an image file.', 'error');
+      return;
+    }
+
+    setSelectedImageFile(imageFile);
+  });
+
+  const applyRichDescriptionCommand = (command) => {
+    richDescriptionEditor?.focus();
+    document.execCommand(command, false);
+  };
+
+  richDescriptionButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      applyRichDescriptionCommand(button.dataset.richCommand);
+    });
+  });
+
+  profileImageInput?.addEventListener('change', () => {
+    const selectedFile = profileImageInput.files?.[0] || null;
+    setSelectedProfileImageFile(selectedFile);
+  });
+
+  profileUploadDropzone?.addEventListener('click', () => {
+    profileImageInput?.click();
+  });
+
+  profileUploadDropzone?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      profileImageInput?.click();
+    }
+  });
+
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    profileUploadDropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      profileUploadDropzone.classList.add('is-dragover');
+    });
+  });
+
+  ['dragleave', 'dragend'].forEach((eventName) => {
+    profileUploadDropzone?.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      profileUploadDropzone.classList.remove('is-dragover');
+    });
+  });
+
+  profileUploadDropzone?.addEventListener('drop', (event) => {
+    event.preventDefault();
+    profileUploadDropzone.classList.remove('is-dragover');
+
+    const droppedFiles = Array.from(event.dataTransfer?.files || []);
+    const imageFile = droppedFiles.find((file) => file.type.startsWith('image/'));
+
+    if (!imageFile) {
+      showToast('Please drop an image file.', 'error');
+      return;
+    }
+
+    setSelectedProfileImageFile(imageFile);
+  });
+
   const renderContentItems = (items = []) => {
     if (!contentGrid) return;
     if (!items.length) {
@@ -303,12 +556,12 @@ export function renderAdminPage() {
       .map((item) => `
         <article class="workspace__content-card">
           <div class="workspace__content-thumb">
-            <img src="${item.image_url}" alt="${item.title}" loading="lazy">
+            <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
           </div>
           <div class="workspace__content-meta">
             <h4>${item.title}</h4>
-            <p>${item.description || 'No description added yet.'}</p>
-            <small>Display order: ${item.sort_order}</small>
+            <div class="workspace__content-description">${item.description || '<p>No description added yet.</p>'}</div>
+            <small>Type: ${item.availability === 'physical' ? 'Physical copy' : 'Digital art'}</small>
           </div>
         </article>
       `)
@@ -332,16 +585,55 @@ export function renderAdminPage() {
   const fillProfileForm = (profile) => {
     document.getElementById('profile-artist-name').value = profile?.artist_name || '';
     document.getElementById('profile-bio').value = profile?.bio || '';
-    document.getElementById('profile-image-url').value = profile?.profile_image_url || '';
     document.getElementById('profile-website').value = profile?.website || '';
     document.getElementById('profile-instagram').value = profile?.instagram || '';
     document.getElementById('profile-twitter').value = profile?.twitter || '';
+    showExistingProfileImage(normalizeImageUrl(profile?.profile_image_url || ''));
 
     if (profileSaveBtn) {
       profileSaveBtn.textContent = profile?.id ? 'Save Profile Changes' : 'Create Artist Profile';
     }
 
     renderProfilePreview(profile);
+  };
+
+  const formatMessageDate = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString();
+  };
+
+  const escapeHtml = (value = '') => String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+  const renderInboxMessages = (messages = []) => {
+    if (!inboxList) return;
+
+    if (!messages.length) {
+      inboxList.innerHTML = '<li>No contact messages yet. Messages from your portfolio Contact page will appear here.</li>';
+      return;
+    }
+
+    inboxList.innerHTML = messages
+      .map((item) => {
+        const sentAt = formatMessageDate(item.created_at);
+        const safeName = escapeHtml(item.sender_name);
+        const safeEmail = escapeHtml(item.sender_email);
+        const safeMessage = escapeHtml(item.message);
+        return `
+          <li>
+            <strong>${safeName}</strong> <span>(${safeEmail})</span>
+            <p>${safeMessage}</p>
+            ${sentAt ? `<small>${sentAt}</small>` : ''}
+          </li>
+        `;
+      })
+      .join('');
   };
 
   const loadArtistProfile = async () => {
@@ -380,12 +672,20 @@ export function renderAdminPage() {
             </div>
           </article>
         `;
+        renderInboxMessages([]);
         activatePanel('profile');
         return;
       }
 
       const portfolioResponse = await api.get(`/artists/${artistProfile.id}/portfolio?per_page=100`);
       renderContentItems(portfolioResponse.data || []);
+
+      try {
+        const messagesResponse = await api.get(`/artists/${artistProfile.id}/messages?per_page=100`);
+        renderInboxMessages(messagesResponse.data || []);
+      } catch (error) {
+        renderInboxMessages([]);
+      }
     } catch (error) {
       contentGrid.innerHTML = `
         <article class="workspace__content-card workspace__content-card--empty">
@@ -395,6 +695,8 @@ export function renderAdminPage() {
           </div>
         </article>
       `;
+
+      renderInboxMessages([]);
     }
   };
 
@@ -414,7 +716,7 @@ export function renderAdminPage() {
       return;
     }
 
-    router.navigate(`/portfolio/${artistProfile.id}`);
+    window.open(`/portfolio/${artistProfile.id}/home`, '_blank', 'noopener,noreferrer');
   });
 
   profileForm?.addEventListener('submit', async (event) => {
@@ -422,7 +724,7 @@ export function renderAdminPage() {
 
     const artistName = document.getElementById('profile-artist-name').value.trim();
     const bio = document.getElementById('profile-bio').value.trim();
-    const profileImageUrl = document.getElementById('profile-image-url').value.trim();
+    const profileImageFile = profileImageInput?.files?.[0] || null;
     const website = document.getElementById('profile-website').value.trim();
     const instagram = document.getElementById('profile-instagram').value.trim();
     const twitter = document.getElementById('profile-twitter').value.trim();
@@ -435,7 +737,6 @@ export function renderAdminPage() {
     const payload = {
       artist_name: artistName,
       bio: bio || null,
-      profile_image_url: profileImageUrl || null,
       website: website || null,
       instagram: instagram || null,
       twitter: twitter || null,
@@ -452,6 +753,14 @@ export function renderAdminPage() {
       }
 
       artistProfile = await loadArtistProfile();
+
+      if (profileImageFile && artistProfile?.id) {
+        const formData = new FormData();
+        formData.append('file', profileImageFile);
+        await api.post(`/artists/${artistProfile.id}/profile/upload`, formData);
+        artistProfile = await loadArtistProfile();
+      }
+
       fillProfileForm(artistProfile);
       await loadContentItems();
       showToast('Profile saved. Your portfolio site is now ready to publish.', 'success');
@@ -472,12 +781,12 @@ export function renderAdminPage() {
     }
 
     const title = document.getElementById('art-title')?.value?.trim();
-    const imageUrl = document.getElementById('art-image-url')?.value?.trim();
-    const description = document.getElementById('art-description')?.value?.trim();
-    const sortOrder = Number(document.getElementById('art-sort-order')?.value || 0);
+    const imageFile = document.getElementById('art-image-file')?.files?.[0] || null;
+    const availability = document.getElementById('art-availability')?.value || 'digital';
+    const richDescriptionHtml = richDescriptionSource?.value?.trim() || richDescriptionEditor?.innerHTML?.trim() || '';
 
-    if (!title || !imageUrl) {
-      showToast('Title and image URL are required.', 'error');
+    if (!title || !imageFile) {
+      showToast('Title and uploaded image are required.', 'error');
       return;
     }
 
@@ -485,16 +794,29 @@ export function renderAdminPage() {
     contentSubmitBtn.innerHTML = '<span class="spinner"></span> Publishing...';
 
     try {
+      const formData = new FormData();
+      formData.append('file', imageFile);
+
+      const uploadResponse = await api.post(`/artists/${artistProfile.id}/portfolio/upload`, formData);
+      const finalImageUrl = uploadResponse?.data?.image_url;
+
+      if (!finalImageUrl) {
+        throw new Error('Image upload failed. Please try again.');
+      }
+
       await api.post(`/artists/${artistProfile.id}/portfolio`, {
         title,
-        image_url: imageUrl,
-        description: description || null,
-        sort_order: Number.isFinite(sortOrder) ? sortOrder : 0,
+        image_url: finalImageUrl,
+        availability,
+        description: richDescriptionHtml || null,
       });
 
       showToast('Content published to your portfolio site.', 'success');
       contentForm.reset();
-      document.getElementById('art-sort-order').value = '0';
+      setSelectedImageFile(null);
+      if (richDescriptionEditor) richDescriptionEditor.innerHTML = '';
+      if (richDescriptionSource) richDescriptionSource.value = '';
+      document.getElementById('art-availability').value = 'digital';
       closeDrawer();
       await loadContentItems();
     } catch (error) {

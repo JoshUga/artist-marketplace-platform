@@ -6,19 +6,49 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+from sqlalchemy import text
 
 from shared.config import Settings
 from shared.database import create_engine, create_session_factory, Base
 from shared.health import create_health_router
 from shared.middleware import CorrelationIdMiddleware, RequestTimingMiddleware
 from shared.logging import setup_logging
-from services.artist.models import Artist, PortfolioItem
+from services.artist.models import Artist, PortfolioItem, ContactMessage
 from services.artist import routes
 
 logger = setup_logging("artist-service")
 
 settings = Settings(SERVICE_NAME="artist-service", SERVICE_PORT=8002)
+
+
+async def _apply_legacy_schema_fixes(engine):
+    """Bring older deployments forward when new columns are added."""
+    async with engine.begin() as conn:
+        availability_column_exists = await conn.scalar(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'portfolio_items'
+                  AND COLUMN_NAME = 'availability'
+                """
+            )
+        )
+
+        if not availability_column_exists:
+            await conn.execute(
+                text(
+                    """
+                    ALTER TABLE portfolio_items
+                    ADD COLUMN availability ENUM('digital', 'physical')
+                    NOT NULL DEFAULT 'digital'
+                    """
+                )
+            )
+            logger.info("Applied schema fix: added portfolio_items.availability")
 
 
 @asynccontextmanager
@@ -27,6 +57,7 @@ async def lifespan(app: FastAPI):
     engine = create_engine(settings.DATABASE_URL)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _apply_legacy_schema_fixes(engine)
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
     logger.info("Artist Service started successfully")
@@ -60,6 +91,10 @@ async def get_db():
 app.dependency_overrides[routes.get_db] = get_db
 app.include_router(routes.router)
 app.include_router(create_health_router("artist-service"))
+
+# Expose uploaded media for CDN fetchers (e.g. Thumbor).
+os.makedirs(settings.ARTIST_MEDIA_DIR, exist_ok=True)
+app.mount("/media", StaticFiles(directory=settings.ARTIST_MEDIA_DIR), name="media")
 
 if __name__ == "__main__":
     import uvicorn

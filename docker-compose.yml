@@ -17,7 +17,9 @@ services:
       product-service:
         condition: service_healthy
     networks:
-      - marketplace-net
+      marketplace-net:
+        aliases:
+          - gateway.local
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/ || exit 1"]
@@ -93,8 +95,13 @@ services:
       - SERVICE_PORT=8002
       - DATABASE_URL=mysql+aiomysql://root:password@mysql:3306/marketplace
       - JWT_SECRET_KEY=change-me-in-production
+      - IMAGE_CDN_BASE_URL=/img/unsafe
+      - IMAGE_ORIGIN_BASE_URL=http://gateway.local/media
+      - ARTIST_MEDIA_DIR=/app/services/artist/media
     ports:
       - "8002:8002"
+    volumes:
+      - ./services/artist/media:/app/services/artist/media
     depends_on:
       mysql:
         condition: service_healthy
@@ -107,6 +114,25 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+
+  # Image CDN / edge-style transformation API
+  thumbor:
+    image: apsl/thumbor:latest
+    ports:
+      - "8888:8000"
+    environment:
+      - THUMBOR_NUM_PROCESSES=2
+      - THUMBOR_USE_GIFS_ENGINE=False
+      - THUMBOR_AUTO_WEBP=True
+      - THUMBOR_QUALITY=85
+      - THUMBOR_ALLOW_UNSAFE_URL=True
+      - THUMBOR_ALLOWED_SOURCES=["gateway.local"]
+    depends_on:
+      artist-service:
+        condition: service_healthy
+    networks:
+      - marketplace-net
+    restart: unless-stopped
 
   # Product Service
   product-service:

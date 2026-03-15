@@ -8,11 +8,14 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  _getHeaders() {
-    const headers = { 'Content-Type': 'application/json' };
+  _getHeaders(body = null) {
+    const headers = {};
     const token = localStorage.getItem('access_token');
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (!(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
     }
     return headers;
   }
@@ -20,10 +23,10 @@ class ApiClient {
   async _request(method, path, body = null) {
     const options = {
       method,
-      headers: this._getHeaders(),
+      headers: this._getHeaders(body),
     };
     if (body) {
-      options.body = JSON.stringify(body);
+      options.body = body instanceof FormData ? body : JSON.stringify(body);
     }
 
     const response = await fetch(`${this.baseUrl}${path}`, options);
@@ -32,7 +35,7 @@ class ApiClient {
       // Try refresh
       const refreshed = await this._tryRefresh();
       if (refreshed) {
-        options.headers = this._getHeaders();
+        options.headers = this._getHeaders(body);
         const retryResponse = await fetch(`${this.baseUrl}${path}`, options);
         return this._handleResponse(retryResponse);
       }
