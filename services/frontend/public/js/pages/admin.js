@@ -6,30 +6,14 @@ import store from '../utils/state.js';
 import { showToast } from '../components/toast.js';
 import { logout } from '../services/auth.js';
 import router from '../utils/router.js';
+import {
+  getTemplateOptions,
+  normalizeTemplateKey,
+  deriveTemplateFromProfile,
+  getTemplateLabel,
+} from '../services/template-service.js';
 
-const TEMPLATE_OPTIONS = [
-  { key: 'editorial', label: 'Editorial Hero' },
-  { key: 'split', label: 'Split Story' },
-  { key: 'minimal-grid', label: 'Minimal Grid' },
-];
-
-const FONT_OPTIONS = [
-  { value: "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", label: 'Manrope / Sans' },
-  { value: "'Playfair Display', Georgia, serif", label: 'Playfair Display / Serif' },
-  { value: "'Space Grotesk', 'Trebuchet MS', sans-serif", label: 'Space Grotesk / Modern' },
-  { value: "'Cormorant Garamond', Georgia, serif", label: 'Cormorant Garamond / Editorial' },
-];
-
-const DEFAULT_PORTFOLIO_THEME = {
-  primary: '#c47a49',
-  secondary: '#a45674',
-  accent: '#e0be86',
-  background: '#0d0c12',
-  surface: '#181722',
-  text: '#ececf2',
-  muted_text: '#a8abbb',
-  font_family: FONT_OPTIONS[0].value,
-};
+const TEMPLATE_OPTIONS = getTemplateOptions();
 
 export function renderAdminPage() {
   const app = document.getElementById('app');
@@ -204,40 +188,32 @@ export function renderAdminPage() {
           <div class="workspace-design">
             <article class="workspace__card workspace-design__intro">
               <h3>Portfolio Design Studio</h3>
-              <p>Pick a portfolio template, dial in your brand colors, and set typography. Changes are applied to your live public portfolio when saved.</p>
+              <p>Select a template, preview the real portfolio rendering, then apply it instantly.</p>
             </article>
 
             <form class="workspace__form workspace-design__form" id="design-form">
-              <div class="workspace-profile__grid">
-                <div class="form-group">
-                  <label class="form-label" for="design-template">Template</label>
-                  <select id="design-template" class="form-input">
-                    ${TEMPLATE_OPTIONS.map((option) => `<option value="${option.key}">${option.label}</option>`).join('')}
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label class="form-label" for="design-theme-name">Theme Name</label>
-                  <input id="design-theme-name" class="form-input" maxlength="120" placeholder="Warm Studio">
-                </div>
+              <div class="form-group">
+                <label class="form-label" for="design-template">Template</label>
+                <select id="design-template" class="form-input">
+                  ${TEMPLATE_OPTIONS.map((option) => `<option value="${option.key}">${option.label}</option>`).join('')}
+                </select>
+                <p class="workspace-design__template-note">Each card below loads your real portfolio in that template.</p>
+                <p class="workspace-design__template-note" id="design-current-template">Current live template: Editorial Hero</p>
               </div>
 
-              <div class="workspace-profile__grid workspace-design__theme-grid">
-                <div class="form-group"><label class="form-label" for="design-theme-primary">Primary</label><input id="design-theme-primary" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-secondary">Secondary</label><input id="design-theme-secondary" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-accent">Accent</label><input id="design-theme-accent" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-background">Background</label><input id="design-theme-background" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-surface">Surface</label><input id="design-theme-surface" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-text">Text</label><input id="design-theme-text" type="color" class="form-input form-input--color"></div>
-                <div class="form-group"><label class="form-label" for="design-theme-muted-text">Muted Text</label><input id="design-theme-muted-text" type="color" class="form-input form-input--color"></div>
-                <div class="form-group">
-                  <label class="form-label" for="design-theme-font-family">Font Family</label>
-                  <select id="design-theme-font-family" class="form-input">
-                    ${FONT_OPTIONS.map((option) => `<option value="${option.value}">${option.label}</option>`).join('')}
-                  </select>
-                </div>
+              <div class="workspace-design__template-gallery" id="design-template-gallery">
+                ${TEMPLATE_OPTIONS.map((option) => `
+                  <button type="button" class="workspace-design__template-card" data-template-option="${option.key}">
+                    <span class="workspace-design__template-frame-wrap">
+                      <iframe class="workspace-design__template-frame" data-template-frame="${option.key}" title="${option.label} preview" loading="lazy"></iframe>
+                    </span>
+                    <strong>${option.label}</strong>
+                    <small>${option.blurb}</small>
+                  </button>
+                `).join('')}
               </div>
 
-              <button class="btn btn--primary" type="submit" id="design-save-btn">Save Portfolio Design</button>
+              <button class="btn btn--primary" type="submit" id="design-save-btn">Apply Template</button>
             </form>
 
             <article class="workspace__card workspace-design__preview">
@@ -245,17 +221,7 @@ export function renderAdminPage() {
                 <h4>Live Design Preview</h4>
                 <small id="design-preview-label">Editorial Hero</small>
               </div>
-              <div class="workspace-design__preview-stage" id="design-preview-stage">
-                <div class="workspace-design__preview-nav">
-                  <span></span><span></span><span></span>
-                </div>
-                <div class="workspace-design__preview-hero"></div>
-                <div class="workspace-design__preview-content">
-                  <article></article>
-                  <article></article>
-                  <article></article>
-                </div>
-              </div>
+              <iframe id="design-preview-frame" class="workspace-design__preview-frame" title="Selected portfolio template preview" loading="lazy"></iframe>
             </article>
           </div>
         </section>
@@ -343,8 +309,6 @@ export function renderAdminPage() {
               <button type="button" class="rich-editor__btn" data-rich-command="insertUnorderedList"><i class="bi bi-list-ul"></i></button>
               <button type="button" class="rich-editor__btn" data-rich-command="insertOrderedList"><i class="bi bi-list-ol"></i></button>
             </div>
-            <label class="form-label" for="art-description-html">HTML/CSS Source (optional)</label>
-            <textarea id="art-description-html" class="form-textarea rich-editor__source" placeholder="Optional raw HTML/CSS for this description"></textarea>
           </div>
           <button class="btn btn--primary btn--block" type="submit" id="content-submit-btn">Publish to Content Library</button>
         </form>
@@ -369,17 +333,10 @@ export function renderAdminPage() {
   const designForm = document.getElementById('design-form');
   const designSaveBtn = document.getElementById('design-save-btn');
   const designTemplateInput = document.getElementById('design-template');
-  const designThemeNameInput = document.getElementById('design-theme-name');
-  const designThemePrimaryInput = document.getElementById('design-theme-primary');
-  const designThemeSecondaryInput = document.getElementById('design-theme-secondary');
-  const designThemeAccentInput = document.getElementById('design-theme-accent');
-  const designThemeBackgroundInput = document.getElementById('design-theme-background');
-  const designThemeSurfaceInput = document.getElementById('design-theme-surface');
-  const designThemeTextInput = document.getElementById('design-theme-text');
-  const designThemeMutedTextInput = document.getElementById('design-theme-muted-text');
-  const designThemeFontFamilyInput = document.getElementById('design-theme-font-family');
-  const designPreviewStage = document.getElementById('design-preview-stage');
+  const designTemplateGallery = document.getElementById('design-template-gallery');
+  const designPreviewFrame = document.getElementById('design-preview-frame');
   const designPreviewLabel = document.getElementById('design-preview-label');
+  const designCurrentTemplate = document.getElementById('design-current-template');
   const inboxList = document.getElementById('workspace-inbox-list');
   const contentForm = document.getElementById('content-form');
   const contentSubmitBtn = document.getElementById('content-submit-btn');
@@ -393,7 +350,6 @@ export function renderAdminPage() {
   const overviewProfileViews = document.getElementById('overview-profile-views');
   const overviewPrivateBuyers = document.getElementById('overview-private-buyers');
   const richDescriptionEditor = document.getElementById('art-description-editor');
-  const richDescriptionSource = document.getElementById('art-description-html');
   const richDescriptionButtons = Array.from(document.querySelectorAll('[data-rich-command]'));
   const profileImageInput = document.getElementById('profile-image-file');
   const profileUploadDropzone = document.getElementById('profile-upload-dropzone');
@@ -432,73 +388,39 @@ export function renderAdminPage() {
     return normalized;
   };
 
-  const normalizeTemplateKey = (value) => {
-    const normalized = (value || 'editorial').trim().toLowerCase();
-    return TEMPLATE_OPTIONS.some((option) => option.key === normalized) ? normalized : 'editorial';
-  };
-
-  const normalizeThemeConfig = (theme) => {
-    const candidate = theme && typeof theme === 'object' ? theme : {};
-    const merged = { ...DEFAULT_PORTFOLIO_THEME };
-    const colorKeys = ['primary', 'secondary', 'accent', 'background', 'surface', 'text', 'muted_text'];
-
-    colorKeys.forEach((key) => {
-      const value = candidate[key];
-      if (typeof value === 'string' && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value.trim())) {
-        merged[key] = value.trim();
+  const renderTemplateGallery = (activeTemplate) => {
+    const templateCards = Array.from(document.querySelectorAll('[data-template-option]'));
+    templateCards.forEach((card) => {
+      const cardTemplate = normalizeTemplateKey(card.getAttribute('data-template-option'));
+      card.classList.toggle('is-active', cardTemplate === activeTemplate);
+      const frame = card.querySelector('iframe');
+      if (frame) {
+        if (artistProfile?.id) {
+          frame.src = `/portfolio/${artistProfile.id}/home?preview_template=${encodeURIComponent(cardTemplate)}&preview_embed=1`;
+        } else {
+          frame.removeAttribute('src');
+          frame.srcdoc = '<!DOCTYPE html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#0c1018;color:#d4d9e7;font:600 13px Syne, sans-serif;">Create profile first</body></html>';
+        }
       }
     });
-
-    if (typeof candidate.font_family === 'string') {
-      const fontValue = candidate.font_family.trim();
-      if (FONT_OPTIONS.some((option) => option.value === fontValue)) {
-        merged.font_family = fontValue;
-      }
-    }
-
-    return merged;
-  };
-
-  const readThemeFromForm = () => ({
-    primary: designThemePrimaryInput?.value || DEFAULT_PORTFOLIO_THEME.primary,
-    secondary: designThemeSecondaryInput?.value || DEFAULT_PORTFOLIO_THEME.secondary,
-    accent: designThemeAccentInput?.value || DEFAULT_PORTFOLIO_THEME.accent,
-    background: designThemeBackgroundInput?.value || DEFAULT_PORTFOLIO_THEME.background,
-    surface: designThemeSurfaceInput?.value || DEFAULT_PORTFOLIO_THEME.surface,
-    text: designThemeTextInput?.value || DEFAULT_PORTFOLIO_THEME.text,
-    muted_text: designThemeMutedTextInput?.value || DEFAULT_PORTFOLIO_THEME.muted_text,
-    font_family: designThemeFontFamilyInput?.value || DEFAULT_PORTFOLIO_THEME.font_family,
-  });
-
-  const applyThemeToForm = (theme) => {
-    const mergedTheme = normalizeThemeConfig(theme);
-    if (designThemePrimaryInput) designThemePrimaryInput.value = mergedTheme.primary;
-    if (designThemeSecondaryInput) designThemeSecondaryInput.value = mergedTheme.secondary;
-    if (designThemeAccentInput) designThemeAccentInput.value = mergedTheme.accent;
-    if (designThemeBackgroundInput) designThemeBackgroundInput.value = mergedTheme.background;
-    if (designThemeSurfaceInput) designThemeSurfaceInput.value = mergedTheme.surface;
-    if (designThemeTextInput) designThemeTextInput.value = mergedTheme.text;
-    if (designThemeMutedTextInput) designThemeMutedTextInput.value = mergedTheme.muted_text;
-    if (designThemeFontFamilyInput) designThemeFontFamilyInput.value = mergedTheme.font_family;
   };
 
   const renderDesignPreview = () => {
-    if (!designPreviewStage || !designPreviewLabel) return;
+    if (!designPreviewLabel) return;
 
     const activeTemplate = normalizeTemplateKey(designTemplateInput?.value);
     const activeTemplateLabel = TEMPLATE_OPTIONS.find((option) => option.key === activeTemplate)?.label || 'Editorial Hero';
-    const theme = normalizeThemeConfig(readThemeFromForm());
 
-    designPreviewLabel.textContent = `${activeTemplateLabel} - ${designThemeNameInput?.value?.trim() || 'Warm Studio'}`;
-    designPreviewStage.className = `workspace-design__preview-stage workspace-design__preview-stage--${activeTemplate}`;
-    designPreviewStage.style.setProperty('--design-primary', theme.primary);
-    designPreviewStage.style.setProperty('--design-secondary', theme.secondary);
-    designPreviewStage.style.setProperty('--design-accent', theme.accent);
-    designPreviewStage.style.setProperty('--design-bg', theme.background);
-    designPreviewStage.style.setProperty('--design-surface', theme.surface);
-    designPreviewStage.style.setProperty('--design-text', theme.text);
-    designPreviewStage.style.setProperty('--design-muted', theme.muted_text);
-    designPreviewStage.style.setProperty('--design-font', theme.font_family);
+    designPreviewLabel.textContent = activeTemplateLabel;
+    if (designPreviewFrame) {
+      if (artistProfile?.id) {
+        designPreviewFrame.src = `/portfolio/${artistProfile.id}/home?preview_template=${encodeURIComponent(activeTemplate)}&preview_embed=1`;
+      } else {
+        designPreviewFrame.removeAttribute('src');
+        designPreviewFrame.srcdoc = '<!DOCTYPE html><html><body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#0c1018;color:#d4d9e7;font:600 15px Syne, sans-serif;">Create your artist profile to load real preview</body></html>';
+      }
+    }
+    renderTemplateGallery(activeTemplate);
   };
 
   const activatePanel = (panelName) => {
@@ -517,6 +439,13 @@ export function renderAdminPage() {
 
   toggleBtn?.addEventListener('click', () => {
     sidebar?.classList.toggle('is-open');
+  });
+
+  designTemplateGallery?.addEventListener('click', (event) => {
+    const templateCard = event.target.closest('[data-template-option]');
+    if (!templateCard || !designTemplateInput) return;
+    designTemplateInput.value = normalizeTemplateKey(templateCard.getAttribute('data-template-option'));
+    renderDesignPreview();
   });
 
   const closeDrawer = () => {
@@ -611,7 +540,6 @@ export function renderAdminPage() {
     if (contentForm) contentForm.reset();
     setSelectedImageFile(null);
     if (richDescriptionEditor) richDescriptionEditor.innerHTML = '';
-    if (richDescriptionSource) richDescriptionSource.value = '';
     const availabilityInput = document.getElementById('art-availability');
     if (availabilityInput) availabilityInput.value = 'digital';
     if (contentItemIdInput) contentItemIdInput.value = '';
@@ -647,7 +575,6 @@ export function renderAdminPage() {
     document.getElementById('art-title').value = item.title || '';
     document.getElementById('art-availability').value = item.availability || 'digital';
     if (richDescriptionEditor) richDescriptionEditor.innerHTML = item.description || '';
-    if (richDescriptionSource) richDescriptionSource.value = item.description || '';
 
     const drawerEyebrow = drawer?.querySelector('.workspace__eyebrow');
     const drawerTitle = drawer?.querySelector('h3');
@@ -849,9 +776,11 @@ export function renderAdminPage() {
   };
 
   const fillDesignForm = (profile) => {
-    if (designTemplateInput) designTemplateInput.value = normalizeTemplateKey(profile?.portfolio_template);
-    if (designThemeNameInput) designThemeNameInput.value = profile?.portfolio_theme_name || 'Warm Studio';
-    applyThemeToForm(profile?.portfolio_theme || DEFAULT_PORTFOLIO_THEME);
+    const selectedTemplate = deriveTemplateFromProfile(profile);
+    if (designTemplateInput) designTemplateInput.value = selectedTemplate;
+    if (designCurrentTemplate) {
+      designCurrentTemplate.textContent = `Current live template: ${getTemplateLabel(selectedTemplate)}`;
+    }
     renderDesignPreview();
   };
 
@@ -1180,8 +1109,6 @@ export function renderAdminPage() {
 
     const payload = {
       portfolio_template: normalizeTemplateKey(designTemplateInput?.value),
-      portfolio_theme_name: designThemeNameInput?.value?.trim() || 'Warm Studio',
-      portfolio_theme: normalizeThemeConfig(readThemeFromForm()),
     };
 
     if (designSaveBtn) {
@@ -1193,28 +1120,19 @@ export function renderAdminPage() {
       await api.put(`/artists/${artistProfile.id}/profile`, payload);
       artistProfile = await loadArtistProfile();
       fillDesignForm(artistProfile);
-      showToast('Portfolio design updated. Your public portfolio now uses this template and theme.', 'success');
+      showToast('Template applied. Your public portfolio now uses this layout.', 'success');
     } catch (error) {
       showToast(error.message || 'Failed to save portfolio design.', 'error');
     } finally {
       if (designSaveBtn) {
         designSaveBtn.disabled = false;
-        designSaveBtn.textContent = 'Save Portfolio Design';
+        designSaveBtn.textContent = 'Apply Template';
       }
     }
   });
 
   [
     designTemplateInput,
-    designThemeNameInput,
-    designThemePrimaryInput,
-    designThemeSecondaryInput,
-    designThemeAccentInput,
-    designThemeBackgroundInput,
-    designThemeSurfaceInput,
-    designThemeTextInput,
-    designThemeMutedTextInput,
-    designThemeFontFamilyInput,
   ].forEach((input) => {
     input?.addEventListener('input', renderDesignPreview);
     input?.addEventListener('change', renderDesignPreview);
@@ -1231,7 +1149,7 @@ export function renderAdminPage() {
     const title = document.getElementById('art-title')?.value?.trim();
     const imageFile = document.getElementById('art-image-file')?.files?.[0] || null;
     const availability = document.getElementById('art-availability')?.value || 'digital';
-    const richDescriptionHtml = richDescriptionSource?.value?.trim() || richDescriptionEditor?.innerHTML?.trim() || '';
+    const richDescriptionHtml = richDescriptionEditor?.innerHTML?.trim() || '';
     const editingItemId = contentItemIdInput?.value?.trim() || '';
     const existingImageUrl = contentExistingImageUrlInput?.value?.trim() || '';
 

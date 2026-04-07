@@ -81,9 +81,10 @@ services:
     ports:
       - "8080:8080"
       - "8081:80"
+      - "8443:8443"
     environment:
-      - AES_KEY=${PAYRAM_AES_KEY:-change-me}
-      - SSL_CERT_PATH=
+      - AES_KEY=${PAYRAM_AES_KEY:-0123456789abcdef0123456789abcdef}
+      - SSL_CERT_PATH=/root/payram/certs
       - BLOCKCHAIN_NETWORK_TYPE=Base
       - SERVER=DEVELOPMENT
       - POSTGRES_HOST=payram-postgres
@@ -93,6 +94,7 @@ services:
       - POSTGRES_PASSWORD=payram123
     volumes:
       - ./payram:/root/payram
+      - ./payram-certs:/root/payram/certs:ro
       - ./payram/log/supervisord:/var/log
       - ./payram/db/postgres:/var/lib/payram/db/postgres
     networks:

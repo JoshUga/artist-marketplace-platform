@@ -1,6 +1,5 @@
 """Artist service API routes."""
 import json
-import re
 import uuid
 from pathlib import Path
 from io import BytesIO
@@ -25,6 +24,12 @@ from services.artist.schemas import (
     ContactMessageCreate,
     ContactMessageResponse,
 )
+from services.artist.template_service import (
+    DEFAULT_PORTFOLIO_TEMPLATE,
+    normalize_template_key,
+    normalize_theme_name,
+    normalize_theme_config,
+)
 
 router = APIRouter(prefix="/artists", tags=["Artists"])
 
@@ -32,60 +37,6 @@ router = APIRouter(prefix="/artists", tags=["Artists"])
 async def get_db():
     """Database session dependency - overridden at app startup."""
     raise NotImplementedError("Database session not configured")
-
-
-DEFAULT_PORTFOLIO_TEMPLATE = "editorial"
-DEFAULT_PORTFOLIO_THEME_NAME = "Warm Studio"
-DEFAULT_PORTFOLIO_THEME = {
-    "primary": "#c47a49",
-    "secondary": "#a45674",
-    "accent": "#e0be86",
-    "background": "#0d0c12",
-    "surface": "#181722",
-    "text": "#ececf2",
-    "muted_text": "#a8abbb",
-    "font_family": "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-}
-ALLOWED_TEMPLATES = {"editorial", "split", "minimal-grid"}
-ALLOWED_FONT_FAMILIES = {
-    "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    "'Playfair Display', Georgia, serif",
-    "'Space Grotesk', 'Trebuchet MS', sans-serif",
-    "'Cormorant Garamond', Georgia, serif",
-}
-HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
-
-
-def _normalize_template_key(value: str | None) -> str:
-    normalized = (value or DEFAULT_PORTFOLIO_TEMPLATE).strip().lower()
-    if normalized not in ALLOWED_TEMPLATES:
-        return DEFAULT_PORTFOLIO_TEMPLATE
-    return normalized
-
-
-def _normalize_theme_name(value: str | None) -> str:
-    if not value:
-        return DEFAULT_PORTFOLIO_THEME_NAME
-    cleaned = value.strip()
-    return cleaned[:120] if cleaned else DEFAULT_PORTFOLIO_THEME_NAME
-
-
-def _normalize_theme_config(value: dict | None) -> dict[str, str]:
-    merged = dict(DEFAULT_PORTFOLIO_THEME)
-    if not isinstance(value, dict):
-        return merged
-
-    color_keys = {"primary", "secondary", "accent", "background", "surface", "text", "muted_text"}
-    for key in color_keys:
-        candidate = value.get(key)
-        if isinstance(candidate, str) and HEX_COLOR_RE.fullmatch(candidate.strip()):
-            merged[key] = candidate.strip()
-
-    font_candidate = value.get("font_family")
-    if isinstance(font_candidate, str) and font_candidate.strip() in ALLOWED_FONT_FAMILIES:
-        merged["font_family"] = font_candidate.strip()
-
-    return merged
 
 
 def _build_artist_response_data(artist: Artist) -> dict:
@@ -103,9 +54,9 @@ def _build_artist_response_data(artist: Artist) -> dict:
         website=artist.website,
         instagram=artist.instagram,
         twitter=artist.twitter,
-        portfolio_template=_normalize_template_key(artist.portfolio_template_key),
-        portfolio_theme_name=_normalize_theme_name(artist.portfolio_theme_name),
-        portfolio_theme=_normalize_theme_config(parsed_theme),
+        portfolio_template=normalize_template_key(artist.portfolio_template_key),
+        portfolio_theme_name=normalize_theme_name(artist.portfolio_theme_name),
+        portfolio_theme=normalize_theme_config(parsed_theme),
         is_verified=artist.is_verified,
         is_active=artist.is_active,
         created_at=artist.created_at,
@@ -193,9 +144,9 @@ async def register_artist(
         website=payload.get("website"),
         instagram=payload.get("instagram"),
         twitter=payload.get("twitter"),
-        portfolio_template_key=_normalize_template_key(payload.get("portfolio_template")),
-        portfolio_theme_name=_normalize_theme_name(payload.get("portfolio_theme_name")),
-        portfolio_theme_config=json.dumps(_normalize_theme_config(payload.get("portfolio_theme"))),
+        portfolio_template_key=normalize_template_key(payload.get("portfolio_template")),
+        portfolio_theme_name=normalize_theme_name(payload.get("portfolio_theme_name")),
+        portfolio_theme_config=json.dumps(normalize_theme_config(payload.get("portfolio_theme"))),
     )
     db.add(artist)
     await db.flush()
@@ -300,13 +251,13 @@ async def update_artist_profile(
             setattr(artist, key, update_dict[key])
 
     if "portfolio_template" in update_dict:
-        artist.portfolio_template_key = _normalize_template_key(update_dict.get("portfolio_template"))
+        artist.portfolio_template_key = normalize_template_key(update_dict.get("portfolio_template"))
 
     if "portfolio_theme_name" in update_dict:
-        artist.portfolio_theme_name = _normalize_theme_name(update_dict.get("portfolio_theme_name"))
+        artist.portfolio_theme_name = normalize_theme_name(update_dict.get("portfolio_theme_name"))
 
     if "portfolio_theme" in update_dict:
-        artist.portfolio_theme_config = json.dumps(_normalize_theme_config(update_dict.get("portfolio_theme")))
+        artist.portfolio_theme_config = json.dumps(normalize_theme_config(update_dict.get("portfolio_theme")))
 
     await db.flush()
     await db.refresh(artist)

@@ -3,12 +3,13 @@
  */
 import api from '../services/api.js';
 import { showToast } from '../components/toast.js';
+import { normalizeTemplateKey, deriveTemplateFromProfile } from '../services/template-service.js';
 
 const NAV_SECTIONS = ['home', 'about', 'gallery', 'contact'];
 const VALID_SECTIONS = [...NAV_SECTIONS, 'bio'];
 const BIO_PREVIEW_LENGTH = 220;
-const TEMPLATE_KEYS = ['editorial', 'split', 'minimal-grid'];
 const FONT_OPTIONS = [
+  "'Syne', 'Space Grotesk', sans-serif",
   "'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   "'Playfair Display', Georgia, serif",
   "'Space Grotesk', 'Trebuchet MS', sans-serif",
@@ -29,11 +30,6 @@ function normalizeSection(section) {
   if (!section) return 'home';
   const value = String(section).toLowerCase();
   return VALID_SECTIONS.includes(value) ? value : 'home';
-}
-
-function normalizeTemplateKey(template) {
-  const normalized = String(template || 'editorial').trim().toLowerCase();
-  return TEMPLATE_KEYS.includes(normalized) ? normalized : 'editorial';
 }
 
 function normalizeThemeConfig(theme) {
@@ -396,6 +392,194 @@ function renderSectionContent(section, artist, portfolioItems) {
   return renderHomeSection(artist, portfolioItems);
 }
 
+function renderEditorialTemplateLayout({ artist, activeSection, heroImage, initials, socialLinks, portfolioItems, params, selectedItem }) {
+  return `
+    <header class="portfolio-site__hero">
+      <img class="portfolio-site__hero-image" src="${heroImage}" alt="${artist.artist_name} featured artwork">
+      <div class="portfolio-site__hero-overlay"></div>
+      <div class="portfolio-site__hero-content container">
+        <nav class="portfolio-site__nav" aria-label="Portfolio sections">
+          ${createTopNavigation(artist.id, activeSection)}
+        </nav>
+        <div class="portfolio-site__identity animate-scale-in">
+          <div class="portfolio-site__avatar">
+            <img src="${normalizeImageUrl(artist.profile_image_url) || 'https://placehold.co/160x160/181722/e6ddcf?text=' + initials}" alt="${artist.artist_name}">
+          </div>
+          <div class="portfolio-site__headline">
+            <h1>${artist.artist_name} ${artist.is_verified ? '<i class="bi bi-patch-check-fill"></i>' : ''}</h1>
+            ${createBioPreviewMarkup(artist, 180, 'portfolio-site__bio-preview portfolio-site__bio-preview--hero')}
+            <div class="portfolio-site__social">
+              ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="container portfolio-site__content-wrap">
+      ${params.itemId
+        ? renderItemDetailSection(artist, selectedItem)
+        : renderSectionContent(activeSection, artist, portfolioItems)}
+    </div>
+  `;
+}
+
+function renderSplitTemplateLayout({ artist, activeSection, heroImage, initials, socialLinks, portfolioItems, params, selectedItem }) {
+  const spotlight = portfolioItems.slice(0, 8);
+  return `
+    <div class="container portfolio-site__split-shell">
+      <aside class="portfolio-site__split-aside animate-fade-in">
+        <div class="portfolio-site__avatar">
+          <img src="${normalizeImageUrl(artist.profile_image_url) || 'https://placehold.co/160x160/181722/e6ddcf?text=' + initials}" alt="${artist.artist_name}">
+        </div>
+        <h1>${artist.artist_name}</h1>
+        ${createBioPreviewMarkup(artist, 170, 'portfolio-site__bio-preview')}
+        <nav class="portfolio-site__nav" aria-label="Portfolio sections">
+          ${createTopNavigation(artist.id, activeSection)}
+        </nav>
+        <div class="portfolio-site__social">
+          ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
+        </div>
+      </aside>
+
+      <main class="portfolio-site__split-main">
+        <section class="portfolio-site__split-hero animate-scale-in">
+          <img src="${heroImage}" alt="${artist.artist_name} featured artwork">
+        </section>
+        ${params.itemId
+          ? renderItemDetailSection(artist, selectedItem)
+          : (activeSection === 'home' || activeSection === 'gallery')
+            ? `<section class="portfolio-site__split-grid">${spotlight.map((item) => `
+                <article class="portfolio-site__split-card">
+                  <a href="/portfolio/${artist.id}/item/${item.id}" data-link>
+                    <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+                  </a>
+                  <h3><a href="/portfolio/${artist.id}/item/${item.id}" data-link>${item.title}</a></h3>
+                  <p>${item.description || 'No description yet.'}</p>
+                </article>
+              `).join('')}</section>`
+            : renderSectionContent(activeSection, artist, portfolioItems)}
+      </main>
+    </div>
+  `;
+}
+
+function renderMinimalTemplateLayout({ artist, activeSection, portfolioItems, params, selectedItem }) {
+  const cardMarkup = portfolioItems.length
+    ? portfolioItems.map((item) => `
+      <article class="portfolio-site__minimal-card">
+        <a href="/portfolio/${artist.id}/item/${item.id}" data-link>
+          <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+        </a>
+        <div>
+          <h3><a href="/portfolio/${artist.id}/item/${item.id}" data-link>${item.title}</a></h3>
+          <p>${item.description || 'No description yet.'}</p>
+        </div>
+      </article>
+    `).join('')
+    : '<article class="portfolio-site__empty"><i class="bi bi-images"></i><h3>Gallery in progress</h3><p>This artist has not published any gallery items yet.</p></article>';
+
+  return `
+    <div class="container portfolio-site__minimal-shell">
+      <header class="portfolio-site__minimal-head animate-fade-in">
+        <p class="portfolio-site__eyebrow">Minimal Grid</p>
+        <h1>${artist.artist_name}</h1>
+        <nav class="portfolio-site__nav" aria-label="Portfolio sections">
+          ${createTopNavigation(artist.id, activeSection)}
+        </nav>
+      </header>
+
+      ${params.itemId
+        ? renderItemDetailSection(artist, selectedItem)
+        : (activeSection === 'home' || activeSection === 'gallery')
+          ? `<section class="portfolio-site__minimal-grid">${cardMarkup}</section>`
+          : renderSectionContent(activeSection, artist, portfolioItems)}
+    </div>
+  `;
+}
+
+function renderAtomTemplateLayout({
+  artist,
+  portfolioItems,
+  activeSection,
+  socialLinks,
+  heroImage,
+  initials,
+  params,
+  selectedItem,
+}) {
+  const featuredItems = portfolioItems.slice(0, 6);
+  const featuredMarkup = featuredItems.length
+    ? featuredItems.map((item, index) => `
+        <article class="portfolio-site__atom-feature" style="animation-delay: ${Math.min(index * 0.05, 0.24)}s">
+          <a href="/portfolio/${artist.id}/item/${item.id}" data-link aria-label="Open ${item.title}">
+            <img src="${normalizeImageUrl(item.image_url)}" alt="${item.title}" loading="lazy">
+          </a>
+          <div>
+            <h3><a href="/portfolio/${artist.id}/item/${item.id}" data-link>${item.title}</a></h3>
+            <p>${item.availability === 'physical' ? 'Physical available' : 'Digital release'}</p>
+          </div>
+        </article>
+      `).join('')
+    : `
+      <article class="portfolio-site__empty">
+        <i class="bi bi-images"></i>
+        <h3>No featured works yet</h3>
+        <p>This artist has not published portfolio items yet.</p>
+      </article>
+    `;
+
+  return `
+    <div class="portfolio-site__atom-shell">
+      <header class="portfolio-site__atom-head animate-fade-in">
+        <div class="container portfolio-site__atom-topbar">
+          <a href="/portfolio/${artist.id}/home" data-link class="portfolio-site__atom-brand">ATOM</a>
+          <nav class="portfolio-site__atom-nav" aria-label="Portfolio sections">
+            ${createTopNavigation(artist.id, activeSection)}
+          </nav>
+          <a href="/portfolio/${artist.id}/contact" data-link class="portfolio-site__atom-cta">Contact</a>
+        </div>
+
+        <div class="container portfolio-site__atom-hero">
+          <div class="portfolio-site__atom-identity animate-scale-in">
+            <span class="portfolio-site__eyebrow">Atom 1.0</span>
+            <h1>${artist.artist_name}</h1>
+            ${createBioPreviewMarkup(artist, 200, 'portfolio-site__bio-preview portfolio-site__bio-preview--hero')}
+            <div class="portfolio-site__social">
+              ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
+            </div>
+          </div>
+
+          <div class="portfolio-site__atom-media">
+            <img src="${heroImage}" alt="${artist.artist_name} featured artwork">
+            <div class="portfolio-site__atom-avatar-badge">
+              <div class="portfolio-site__avatar">
+              <img src="${normalizeImageUrl(artist.profile_image_url) || 'https://placehold.co/160x160/181722/e6ddcf?text=' + initials}" alt="${artist.artist_name}">
+            </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section class="container portfolio-site__section portfolio-site__atom-featured animate-fade-in">
+        <div class="portfolio-site__section-head">
+          <p class="portfolio-site__eyebrow">Portfolio</p>
+          <h2>Selected Work</h2>
+        </div>
+        <div class="portfolio-site__atom-feature-grid">
+          ${featuredMarkup}
+        </div>
+      </section>
+
+      <div class="container portfolio-site__content-wrap">
+        ${params.itemId
+          ? renderItemDetailSection(artist, selectedItem)
+          : renderSectionContent(activeSection, artist, portfolioItems)}
+      </div>
+    </div>
+  `;
+}
+
 function setupContactForm(artistId, artistName) {
   const form = document.getElementById('portfolio-contact-form');
   if (!form) return;
@@ -466,6 +650,9 @@ export async function renderArtistDetailPage(params) {
   `;
 
   try {
+    const query = new URLSearchParams(window.location.search);
+    const previewTemplate = query.get('preview_template');
+    const isEmbeddedPreview = query.get('preview_embed') === '1';
     const activeSection = normalizeSection(params.section);
     const [artistResponse, portfolioResponse] = await Promise.all([
       api.get(`/artists/${params.id}`),
@@ -481,7 +668,9 @@ export async function renderArtistDetailPage(params) {
       || normalizeImageUrl(artist.profile_image_url)
       || 'https://placehold.co/1600x900/1f1a22/e6ddcf?text=Artist+Portfolio';
     const initials = getInitials(artist.artist_name);
-    const templateKey = normalizeTemplateKey(artist.portfolio_template);
+    const templateKey = previewTemplate
+      ? normalizeTemplateKey(previewTemplate)
+      : deriveTemplateFromProfile(artist);
     const themeStyle = buildThemeStyle(artist.portfolio_theme);
 
     const socialLinks = [
@@ -490,35 +679,53 @@ export async function renderArtistDetailPage(params) {
       artist.website ? `<a href="${artist.website}" target="_blank" rel="noopener noreferrer"><i class="bi bi-globe2"></i><span>Website</span></a>` : '',
     ].filter(Boolean).join('');
 
-    app.innerHTML = `
-      <section class="portfolio-site portfolio-site--template-${templateKey} animate-fade-in" style="${themeStyle}">
-        <header class="portfolio-site__hero">
-          <img class="portfolio-site__hero-image" src="${heroImage}" alt="${artist.artist_name} featured artwork">
-          <div class="portfolio-site__hero-overlay"></div>
-          <div class="portfolio-site__hero-content container">
-            <nav class="portfolio-site__nav" aria-label="Portfolio sections">
-              ${createTopNavigation(artist.id, activeSection)}
-            </nav>
-            <div class="portfolio-site__identity animate-scale-in">
-              <div class="portfolio-site__avatar">
-                <img src="${normalizeImageUrl(artist.profile_image_url) || 'https://placehold.co/160x160/181722/e6ddcf?text=' + initials}" alt="${artist.artist_name}">
-              </div>
-              <div class="portfolio-site__headline">
-                <h1>${artist.artist_name} ${artist.is_verified ? '<i class="bi bi-patch-check-fill"></i>' : ''}</h1>
-                ${createBioPreviewMarkup(artist, 180, 'portfolio-site__bio-preview portfolio-site__bio-preview--hero')}
-                <div class="portfolio-site__social">
-                  ${socialLinks || '<span class="portfolio-site__social-empty">No social links shared yet.</span>'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+    let templateMarkup = '';
+    if (templateKey === 'atom') {
+      templateMarkup = renderAtomTemplateLayout({
+        artist,
+        portfolioItems,
+        activeSection,
+        socialLinks,
+        heroImage,
+        initials,
+        params,
+        selectedItem,
+      });
+    } else if (templateKey === 'split') {
+      templateMarkup = renderSplitTemplateLayout({
+        artist,
+        activeSection,
+        heroImage,
+        initials,
+        socialLinks,
+        portfolioItems,
+        params,
+        selectedItem,
+      });
+    } else if (templateKey === 'minimal-grid') {
+      templateMarkup = renderMinimalTemplateLayout({
+        artist,
+        activeSection,
+        portfolioItems,
+        params,
+        selectedItem,
+      });
+    } else {
+      templateMarkup = renderEditorialTemplateLayout({
+        artist,
+        activeSection,
+        heroImage,
+        initials,
+        socialLinks,
+        portfolioItems,
+        params,
+        selectedItem,
+      });
+    }
 
-        <div class="container portfolio-site__content-wrap">
-          ${params.itemId
-            ? renderItemDetailSection(artist, selectedItem)
-            : renderSectionContent(activeSection, artist, portfolioItems)}
-        </div>
+    app.innerHTML = `
+      <section class="portfolio-site portfolio-site--template-${templateKey} ${isEmbeddedPreview ? 'portfolio-site--embedded-preview' : ''} animate-fade-in" style="${themeStyle}">
+        ${templateMarkup}
       </section>
     `;
 
