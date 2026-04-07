@@ -63,9 +63,8 @@ services:
     ports:
       - "8080:8080"
       - "8081:80"
-      - "5432:5432"
     environment:
-      - AES_KEY=366502f6c3e3d828d903691bcc8f46e0d009b70477076b6417cef0a3974b78e8
+      - AES_KEY=${PAYRAM_AES_KEY:-change-me}
       - SSL_CERT_PATH=
       - BLOCKCHAIN_NETWORK_TYPE=testnet
       - SERVER=DEVELOPMENT

@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Float,
+    Numeric,
     Integer,
     Enum as SAEnum,
     ForeignKey,
@@ -101,7 +102,7 @@ class ProductPayment(Base):
     buyer_id = Column(CHAR(36), nullable=False, index=True)
     merchant_id = Column(CHAR(36), nullable=False, index=True)
     quantity = Column(Integer, nullable=False, default=1)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
     currency = Column(String(3), nullable=False, default="USD")
     status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
     provider = Column(String(50), nullable=False, default="payram")
@@ -123,7 +124,7 @@ class MerchantPayment(Base):
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     merchant_id = Column(CHAR(36), nullable=False, index=True)
     service_name = Column(String(255), nullable=False)
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
     currency = Column(String(3), nullable=False, default="USD")
     status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
     provider = Column(String(50), nullable=False, default="payram")

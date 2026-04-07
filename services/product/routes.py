@@ -1,6 +1,7 @@
 """Product service API routes."""
 from html import escape
 from typing import Any
+from decimal import Decimal, ROUND_HALF_UP
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Header, Request
 from fastapi.responses import HTMLResponse
@@ -55,22 +56,32 @@ def _get_optional_user_from_auth_header(authorization: str | None) -> dict | Non
     return payload
 
 
-def _extract_checkout_url(data: Any) -> str | None:
+def _extract_checkout_url(data: Any, depth: int = 0, max_depth: int = 8) -> str | None:
+    if depth > max_depth:
+        return None
     if isinstance(data, dict):
         for key in ("checkout_url", "payment_url", "redirect_url", "url"):
             value = data.get(key)
             if isinstance(value, str) and value.strip():
                 return value
         for value in data.values():
-            found = _extract_checkout_url(value)
+            found = _extract_checkout_url(value, depth=depth + 1, max_depth=max_depth)
             if found:
                 return found
     elif isinstance(data, list):
         for item in data:
-            found = _extract_checkout_url(item)
+            found = _extract_checkout_url(item, depth=depth + 1, max_depth=max_depth)
             if found:
                 return found
     return None
+
+
+def _extract_provider_payment_id(data: dict[str, Any]) -> str | None:
+    candidate = data.get("payment_id") or data.get("id") or data.get("transaction_id")
+    if candidate is None:
+        return None
+    value = str(candidate).strip()
+    return value or None
 
 
 async def _request_payram_checkout(payload: dict[str, Any]) -> dict[str, Any]:
@@ -407,7 +418,10 @@ async def create_product_checkout(
     if checkout_data.quantity > product.quantity:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Requested quantity is not available")
 
-    amount = round(product.price * checkout_data.quantity, 2)
+    amount = (Decimal(str(product.price)) * Decimal(checkout_data.quantity)).quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
     settings = get_settings()
     payment = ProductPayment(
         product_id=product.id,
@@ -423,7 +437,7 @@ async def create_product_checkout(
 
     payload = {
         "reference": payment.id,
-        "amount": amount,
+        "amount": float(amount),
         "currency": product.currency,
         "description": f"Purchase of {product.title}",
         "return_url": checkout_data.success_url or settings.PAYRAM_DEFAULT_SUCCESS_URL,
@@ -438,13 +452,14 @@ async def create_product_checkout(
     }
 
     provider_response = await _request_payram_checkout(payload)
-    payment.provider_payment_id = str(
-        provider_response.get("payment_id")
-        or provider_response.get("id")
-        or provider_response.get("transaction_id")
-        or ""
-    ) or None
+    payment.provider_payment_id = _extract_provider_payment_id(provider_response)
     payment.provider_checkout_url = _extract_checkout_url(provider_response)
+    if not payment.provider_checkout_url:
+        payment.status = PaymentStatus.FAILED
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payram response did not include a checkout URL",
+        )
     await db.flush()
 
     return APIResponse(
@@ -456,9 +471,8 @@ async def create_product_checkout(
             "provider_payment_id": payment.provider_payment_id,
             "checkout_url": payment.provider_checkout_url,
             "status": payment.status.value,
-            "amount": payment.amount,
+            "amount": float(payment.amount),
             "currency": payment.currency,
-            "provider_response": provider_response,
         },
     )
 
@@ -483,7 +497,7 @@ async def create_merchant_domain_checkout(
 
     payload = {
         "reference": payment.id,
-        "amount": payment.amount,
+        "amount": float(payment.amount),
         "currency": payment.currency,
         "description": f"Merchant domain payment for {payment_data.domain_name}",
         "return_url": payment_data.success_url or settings.PAYRAM_DEFAULT_SUCCESS_URL,
@@ -496,13 +510,14 @@ async def create_merchant_domain_checkout(
     }
 
     provider_response = await _request_payram_checkout(payload)
-    payment.provider_payment_id = str(
-        provider_response.get("payment_id")
-        or provider_response.get("id")
-        or provider_response.get("transaction_id")
-        or ""
-    ) or None
+    payment.provider_payment_id = _extract_provider_payment_id(provider_response)
     payment.provider_checkout_url = _extract_checkout_url(provider_response)
+    if not payment.provider_checkout_url:
+        payment.status = PaymentStatus.FAILED
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payram response did not include a checkout URL",
+        )
     await db.flush()
 
     return APIResponse(
@@ -514,9 +529,8 @@ async def create_merchant_domain_checkout(
             "provider_payment_id": payment.provider_payment_id,
             "checkout_url": payment.provider_checkout_url,
             "status": payment.status.value,
-            "amount": payment.amount,
+            "amount": float(payment.amount),
             "currency": payment.currency,
-            "provider_response": provider_response,
         },
     )
 

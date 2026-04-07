@@ -138,6 +138,10 @@ export async function renderProductDetailPage(params) {
                   <span>Copy Link</span>
                 </button>
               </div>
+              <div class="form-group" style="margin-top: var(--spacing-md);">
+                <label class="form-label" for="buy-quantity">Quantity</label>
+                <input id="buy-quantity" class="form-input" type="number" min="1" max="${Math.max(1, Number(product.quantity || 1))}" value="1">
+              </div>
 
               <section class="product-share-grid" aria-label="Share artwork">
                 ${shareLinks
@@ -223,8 +227,11 @@ export async function renderProductDetailPage(params) {
       }
 
       try {
+        const quantityInput = document.getElementById('buy-quantity');
+        const maxQuantity = Math.max(1, Number(product.quantity || 1));
+        const quantity = Math.min(maxQuantity, Math.max(1, Number(quantityInput?.value || 1)));
         const response = await api.post(`/products/${product.id}/payments/checkout`, {
-          quantity: 1,
+          quantity,
           success_url: `${window.location.origin}/products/${product.id}`,
           cancel_url: `${window.location.origin}/products/${product.id}`,
         });

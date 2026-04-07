@@ -2,6 +2,7 @@
 from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 
 class ProductCreate(BaseModel):
@@ -126,7 +127,7 @@ class ProductCheckoutCreate(BaseModel):
 
 class MerchantDomainPaymentCreate(BaseModel):
     domain_name: str
-    amount: float
+    amount: Decimal
     currency: str = "USD"
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
@@ -144,4 +145,4 @@ class MerchantDomainPaymentCreate(BaseModel):
     def validate_amount(cls, v):
         if v <= 0:
             raise ValueError("Amount must be greater than zero")
-        return round(v, 2)
+        return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
