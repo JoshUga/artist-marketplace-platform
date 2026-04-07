@@ -138,6 +138,10 @@ export async function renderProductDetailPage(params) {
                   <span>Copy Link</span>
                 </button>
               </div>
+              <div class="form-group" style="margin-top: var(--spacing-md);">
+                <label class="form-label" for="buy-quantity">Quantity</label>
+                <input id="buy-quantity" class="form-input" type="number" min="1" max="${Math.max(1, Number(product.quantity || 1))}" value="1">
+              </div>
 
               <section class="product-share-grid" aria-label="Share artwork">
                 ${shareLinks
@@ -151,8 +155,8 @@ export async function renderProductDetailPage(params) {
                   .join('')}
               </section>
 
-              <button class="btn btn--primary btn--block" style="margin-top: var(--spacing-lg);" type="button">
-                <i class="bi bi-cart-plus"></i> Add to Cart
+              <button id="buy-now-btn" class="btn btn--primary btn--block" style="margin-top: var(--spacing-lg);" type="button">
+                <i class="bi bi-credit-card"></i> Buy Now
               </button>
             </div>
           </div>
@@ -213,6 +217,32 @@ export async function renderProductDetailPage(params) {
         likeBtn.innerHTML = `<i class="bi ${nextLiked ? 'bi-heart-fill' : 'bi-heart'}"></i><span>${nextLiked ? 'Liked' : 'Like'}</span>`;
       } catch (error) {
         showToast(error.message || 'Unable to update like right now.', 'error');
+      }
+    });
+
+    document.getElementById('buy-now-btn')?.addEventListener('click', async () => {
+      if (!isAuthenticated()) {
+        showToast('Please login to continue with payment.', 'warning');
+        return;
+      }
+
+      try {
+        const quantityInput = document.getElementById('buy-quantity');
+        const maxQuantity = Math.max(1, Number(product.quantity || 1));
+        const quantity = Math.min(maxQuantity, Math.max(1, Number(quantityInput?.value || 1)));
+        const response = await api.post(`/products/${product.id}/payments/checkout`, {
+          quantity,
+          success_url: `${window.location.origin}/products/${product.id}`,
+          cancel_url: `${window.location.origin}/products/${product.id}`,
+        });
+        const checkoutUrl = response?.data?.checkout_url;
+        if (!checkoutUrl) {
+          showToast('Payment session created, but checkout URL is missing.', 'warning');
+          return;
+        }
+        window.location.assign(checkoutUrl);
+      } catch (error) {
+        showToast(error.message || 'Could not start payment.', 'error');
       }
     });
 

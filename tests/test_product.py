@@ -8,6 +8,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///./test.db"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key"
 
 from shared.security import create_access_token
+from services.product import routes
 
 pytestmark = pytest.mark.asyncio
 
@@ -249,3 +250,58 @@ class TestProductEngagement:
         assert data["total_views"] >= 1
         assert data["total_likes"] >= 1
         assert data["total_comments"] >= 1
+
+
+class TestProductPayments:
+    async def test_create_product_checkout(self, product_client, monkeypatch):
+        async def fake_checkout(payload):
+            return {
+                "id": "payram-checkout-1",
+                "checkout_url": "https://payram.test/checkout/1",
+                "echo_reference": payload.get("reference"),
+            }
+
+        monkeypatch.setattr(routes, "_request_payram_checkout", fake_checkout)
+
+        artist_headers = get_auth_headers(user_id="artist-for-payment", role="artist")
+        create_resp = await product_client.post("/products", json={
+            "title": "Payable Product",
+            "price": 199.99,
+            "currency": "USD",
+            "quantity": 3,
+        }, headers=artist_headers)
+        product_id = create_resp.json()["data"]["id"]
+
+        buyer_headers = get_auth_headers(user_id="buyer-123", role="buyer")
+        checkout_resp = await product_client.post(
+            f"/products/{product_id}/payments/checkout",
+            json={"quantity": 2},
+            headers=buyer_headers,
+        )
+        assert checkout_resp.status_code == 201
+        data = checkout_resp.json()["data"]
+        assert data["provider"] == "payram"
+        assert data["checkout_url"] == "https://payram.test/checkout/1"
+        assert data["amount"] == 399.98
+
+    async def test_create_merchant_domain_checkout(self, product_client, monkeypatch):
+        async def fake_checkout(payload):
+            return {
+                "payment_id": "payram-domain-1",
+                "payment_url": "https://payram.test/domain/1",
+                "echo_domain": payload.get("metadata", {}).get("domain_name"),
+            }
+
+        monkeypatch.setattr(routes, "_request_payram_checkout", fake_checkout)
+
+        merchant_headers = get_auth_headers(user_id="merchant-1", role="artist")
+        checkout_resp = await product_client.post(
+            "/products/merchant/payments/domain/checkout",
+            json={"domain_name": "eliteart.studio", "amount": 12.50, "currency": "usd"},
+            headers=merchant_headers,
+        )
+        assert checkout_resp.status_code == 201
+        data = checkout_resp.json()["data"]
+        assert data["provider"] == "payram"
+        assert data["checkout_url"] == "https://payram.test/domain/1"
+        assert data["currency"] == "USD"
