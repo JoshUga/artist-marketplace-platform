@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     IMAGE_ORIGIN_BASE_URL: str = "http://gateway.local/media"
     ARTIST_MEDIA_DIR: str = "./services/artist/media"
 
+    # Payram
+    PAYRAM_BASE_URL: str = "http://payram:8080"
+    PAYRAM_CHECKOUT_PATH: str = "/payments/checkout"
+    PAYRAM_API_KEY: str = ""
+    PAYRAM_TIMEOUT_SECONDS: int = 15
+    PAYRAM_DEFAULT_SUCCESS_URL: str = "http://localhost:3000/payment/success"
+    PAYRAM_DEFAULT_CANCEL_URL: str = "http://localhost:3000/payment/cancel"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

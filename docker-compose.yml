@@ -57,6 +57,31 @@ services:
       - marketplace-net
     restart: unless-stopped
 
+  # Payram Payment Service
+  payram:
+    image: payramapp/payram:latest
+    ports:
+      - "8080:8080"
+      - "8081:80"
+      - "5432:5432"
+    environment:
+      - AES_KEY=366502f6c3e3d828d903691bcc8f46e0d009b70477076b6417cef0a3974b78e8
+      - SSL_CERT_PATH=
+      - BLOCKCHAIN_NETWORK_TYPE=testnet
+      - SERVER=DEVELOPMENT
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - POSTGRES_DATABASE=payram
+      - POSTGRES_USERNAME=payram
+      - POSTGRES_PASSWORD=payram123
+    volumes:
+      - ./payram:/root/payram
+      - ./payram/log/supervisord:/var/log
+      - ./payram/db/postgres:/var/lib/payram/db/postgres
+    networks:
+      - marketplace-net
+    restart: unless-stopped
+
   # Auth Service
   auth-service:
     build:
@@ -73,6 +98,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      payram:
+        condition: service_started
       redis:
         condition: service_started
     networks:
@@ -144,6 +171,8 @@ services:
       - SERVICE_PORT=8003
       - DATABASE_URL=mysql+aiomysql://root:password@mysql:3306/marketplace
       - JWT_SECRET_KEY=change-me-in-production
+      - PAYRAM_BASE_URL=http://payram:8080
+      - PAYRAM_CHECKOUT_PATH=/payments/checkout
     ports:
       - "8003:8003"
     depends_on:

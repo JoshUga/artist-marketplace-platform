@@ -14,7 +14,7 @@ from shared.database import create_engine, create_session_factory, Base
 from shared.health import create_health_router
 from shared.middleware import CorrelationIdMiddleware, RequestTimingMiddleware
 from shared.logging import setup_logging
-from services.product.models import Product, Category
+from services.product.models import Product, Category, ProductPayment, MerchantPayment
 from services.product import routes
 
 logger = setup_logging("product-service")
@@ -77,7 +77,7 @@ async def lifespan(app: FastAPI):
     engine = create_engine(settings.DATABASE_URL)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await _apply_legacy_schema_fixes(enginey")
+    await _apply_legacy_schema_fixes(engine)
     yield
     await engine.dispose()
     logger.info("Product Service stopped")

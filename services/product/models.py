@@ -85,3 +85,55 @@ class ProductReview(Base):
     rating = Column(Integer, nullable=False)
     comment = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class PaymentStatus(str, enum.Enum):
+    PENDING = "pending"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ProductPayment(Base):
+    __tablename__ = "product_payments"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    product_id = Column(CHAR(36), ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
+    buyer_id = Column(CHAR(36), nullable=False, index=True)
+    merchant_id = Column(CHAR(36), nullable=False, index=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), nullable=False, default="USD")
+    status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+    provider = Column(String(50), nullable=False, default="payram")
+    provider_payment_id = Column(String(255), nullable=True)
+    provider_checkout_url = Column(String(1000), nullable=True)
+    purpose = Column(String(100), nullable=False, default="artwork_purchase")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+
+class MerchantPayment(Base):
+    __tablename__ = "merchant_payments"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    merchant_id = Column(CHAR(36), nullable=False, index=True)
+    service_name = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), nullable=False, default="USD")
+    status = Column(SAEnum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+    provider = Column(String(50), nullable=False, default="payram")
+    provider_payment_id = Column(String(255), nullable=True)
+    provider_checkout_url = Column(String(1000), nullable=True)
+    purpose = Column(String(100), nullable=False, default="domain_name")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )

@@ -1,13 +1,25 @@
 """Product service API routes."""
 from html import escape
+from typing import Any
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Header, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
+from shared.config import get_settings
 from shared.security import get_current_user, require_role, decode_token
 from shared.schemas import APIResponse, PaginatedResponse
-from services.product.models import Product, Category, ProductStatus, ProductLike, ProductReview
+from services.product.models import (
+    Product,
+    Category,
+    ProductStatus,
+    ProductLike,
+    ProductReview,
+    ProductPayment,
+    MerchantPayment,
+    PaymentStatus,
+)
 from services.product.schemas import (
     ProductCreate,
     ProductUpdate,
@@ -16,6 +28,8 @@ from services.product.schemas import (
     CategoryResponse,
     ProductReviewCreate,
     ProductReviewResponse,
+    ProductCheckoutCreate,
+    MerchantDomainPaymentCreate,
 )
 
 router = APIRouter(tags=["Products"])
@@ -39,6 +53,56 @@ def _get_optional_user_from_auth_header(authorization: str | None) -> dict | Non
     if payload.get("type") != "access":
         return None
     return payload
+
+
+def _extract_checkout_url(data: Any) -> str | None:
+    if isinstance(data, dict):
+        for key in ("checkout_url", "payment_url", "redirect_url", "url"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        for value in data.values():
+            found = _extract_checkout_url(value)
+            if found:
+                return found
+    elif isinstance(data, list):
+        for item in data:
+            found = _extract_checkout_url(item)
+            if found:
+                return found
+    return None
+
+
+async def _request_payram_checkout(payload: dict[str, Any]) -> dict[str, Any]:
+    settings = get_settings()
+    checkout_url = f"{settings.PAYRAM_BASE_URL.rstrip('/')}/{settings.PAYRAM_CHECKOUT_PATH.lstrip('/')}"
+    headers = {"Content-Type": "application/json"}
+    if settings.PAYRAM_API_KEY:
+        headers["Authorization"] = f"Bearer {settings.PAYRAM_API_KEY}"
+
+    try:
+        async with httpx.AsyncClient(timeout=settings.PAYRAM_TIMEOUT_SECONDS) as client:
+            response = await client.post(checkout_url, json=payload, headers=headers)
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Payram service is unavailable",
+        ) from exc
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = {"raw": response.text}
+
+    if response.status_code >= 400:
+        detail = "Payram checkout request failed"
+        if isinstance(body, dict):
+            detail = str(body.get("message") or body.get("detail") or detail)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=detail)
+
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Invalid Payram response")
+    return body
 
 
 # Product routes
@@ -326,6 +390,134 @@ async def create_product_review(
         success=True,
         message="Review added",
         data=ProductReviewResponse.model_validate(review).model_dump(),
+    )
+
+
+@router.post("/products/{product_id}/payments/checkout", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
+async def create_product_checkout(
+    product_id: str,
+    checkout_data: ProductCheckoutCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Product).where(Product.id == product_id))
+    product = result.scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    if checkout_data.quantity > product.quantity:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Requested quantity is not available")
+
+    amount = round(product.price * checkout_data.quantity, 2)
+    settings = get_settings()
+    payment = ProductPayment(
+        product_id=product.id,
+        buyer_id=current_user["sub"],
+        merchant_id=product.artist_id,
+        quantity=checkout_data.quantity,
+        amount=amount,
+        currency=product.currency,
+        status=PaymentStatus.PENDING,
+    )
+    db.add(payment)
+    await db.flush()
+
+    payload = {
+        "reference": payment.id,
+        "amount": amount,
+        "currency": product.currency,
+        "description": f"Purchase of {product.title}",
+        "return_url": checkout_data.success_url or settings.PAYRAM_DEFAULT_SUCCESS_URL,
+        "cancel_url": checkout_data.cancel_url or settings.PAYRAM_DEFAULT_CANCEL_URL,
+        "metadata": {
+            "payment_type": "artwork_purchase",
+            "product_id": product.id,
+            "buyer_id": current_user["sub"],
+            "merchant_id": product.artist_id,
+            "quantity": checkout_data.quantity,
+        },
+    }
+
+    provider_response = await _request_payram_checkout(payload)
+    payment.provider_payment_id = str(
+        provider_response.get("payment_id")
+        or provider_response.get("id")
+        or provider_response.get("transaction_id")
+        or ""
+    ) or None
+    payment.provider_checkout_url = _extract_checkout_url(provider_response)
+    await db.flush()
+
+    return APIResponse(
+        success=True,
+        message="Checkout created",
+        data={
+            "payment_id": payment.id,
+            "provider": payment.provider,
+            "provider_payment_id": payment.provider_payment_id,
+            "checkout_url": payment.provider_checkout_url,
+            "status": payment.status.value,
+            "amount": payment.amount,
+            "currency": payment.currency,
+            "provider_response": provider_response,
+        },
+    )
+
+
+@router.post("/products/merchant/payments/domain/checkout", response_model=APIResponse, status_code=status.HTTP_201_CREATED)
+async def create_merchant_domain_checkout(
+    payment_data: MerchantDomainPaymentCreate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    settings = get_settings()
+    payment = MerchantPayment(
+        merchant_id=current_user["sub"],
+        service_name=payment_data.domain_name,
+        amount=payment_data.amount,
+        currency=payment_data.currency.upper(),
+        status=PaymentStatus.PENDING,
+        purpose="domain_name",
+    )
+    db.add(payment)
+    await db.flush()
+
+    payload = {
+        "reference": payment.id,
+        "amount": payment.amount,
+        "currency": payment.currency,
+        "description": f"Merchant domain payment for {payment_data.domain_name}",
+        "return_url": payment_data.success_url or settings.PAYRAM_DEFAULT_SUCCESS_URL,
+        "cancel_url": payment_data.cancel_url or settings.PAYRAM_DEFAULT_CANCEL_URL,
+        "metadata": {
+            "payment_type": "merchant_domain",
+            "domain_name": payment_data.domain_name,
+            "merchant_id": current_user["sub"],
+        },
+    }
+
+    provider_response = await _request_payram_checkout(payload)
+    payment.provider_payment_id = str(
+        provider_response.get("payment_id")
+        or provider_response.get("id")
+        or provider_response.get("transaction_id")
+        or ""
+    ) or None
+    payment.provider_checkout_url = _extract_checkout_url(provider_response)
+    await db.flush()
+
+    return APIResponse(
+        success=True,
+        message="Merchant domain payment checkout created",
+        data={
+            "payment_id": payment.id,
+            "provider": payment.provider,
+            "provider_payment_id": payment.provider_payment_id,
+            "checkout_url": payment.provider_checkout_url,
+            "status": payment.status.value,
+            "amount": payment.amount,
+            "currency": payment.currency,
+            "provider_response": provider_response,
+        },
     )
 
 

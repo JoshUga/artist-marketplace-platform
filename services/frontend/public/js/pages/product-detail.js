@@ -151,8 +151,8 @@ export async function renderProductDetailPage(params) {
                   .join('')}
               </section>
 
-              <button class="btn btn--primary btn--block" style="margin-top: var(--spacing-lg);" type="button">
-                <i class="bi bi-cart-plus"></i> Add to Cart
+              <button id="buy-now-btn" class="btn btn--primary btn--block" style="margin-top: var(--spacing-lg);" type="button">
+                <i class="bi bi-credit-card"></i> Buy Now
               </button>
             </div>
           </div>
@@ -213,6 +213,29 @@ export async function renderProductDetailPage(params) {
         likeBtn.innerHTML = `<i class="bi ${nextLiked ? 'bi-heart-fill' : 'bi-heart'}"></i><span>${nextLiked ? 'Liked' : 'Like'}</span>`;
       } catch (error) {
         showToast(error.message || 'Unable to update like right now.', 'error');
+      }
+    });
+
+    document.getElementById('buy-now-btn')?.addEventListener('click', async () => {
+      if (!isAuthenticated()) {
+        showToast('Please login to continue with payment.', 'warning');
+        return;
+      }
+
+      try {
+        const response = await api.post(`/products/${product.id}/payments/checkout`, {
+          quantity: 1,
+          success_url: `${window.location.origin}/products/${product.id}`,
+          cancel_url: `${window.location.origin}/products/${product.id}`,
+        });
+        const checkoutUrl = response?.data?.checkout_url;
+        if (!checkoutUrl) {
+          showToast('Payment session created, but checkout URL is missing.', 'warning');
+          return;
+        }
+        window.location.assign(checkoutUrl);
+      } catch (error) {
+        showToast(error.message || 'Could not start payment.', 'error');
       }
     });
 
