@@ -3,7 +3,7 @@
  */
 import api from '../services/api.js';
 import { showToast } from '../components/toast.js';
-import { normalizeTemplateKey, deriveTemplateFromProfile } from '../services/template-service.js';
+import { normalizeTemplateKey, deriveTemplateFromProfile, getTemplateLabel } from '../services/template-service.js';
 
 const NAV_SECTIONS = ['home', 'about', 'gallery', 'contact'];
 const VALID_SECTIONS = [...NAV_SECTIONS, 'bio'];
@@ -509,6 +509,8 @@ function renderAtomTemplateLayout({
   selectedItem,
 }) {
   const featuredItems = portfolioItems.slice(0, 6);
+  const atomBrand = `${artist.artist_name || 'Artist'} Studio`;
+  const atomTemplateLabel = getTemplateLabel('atom');
   const featuredMarkup = featuredItems.length
     ? featuredItems.map((item, index) => `
         <article class="portfolio-site__atom-feature" style="animation-delay: ${Math.min(index * 0.05, 0.24)}s">
@@ -533,7 +535,7 @@ function renderAtomTemplateLayout({
     <div class="portfolio-site__atom-shell">
       <header class="portfolio-site__atom-head animate-fade-in">
         <div class="container portfolio-site__atom-topbar">
-          <a href="/portfolio/${artist.id}/home" data-link class="portfolio-site__atom-brand">ATOM</a>
+          <a href="/portfolio/${artist.id}/home" data-link class="portfolio-site__atom-brand">${atomBrand}</a>
           <nav class="portfolio-site__atom-nav" aria-label="Portfolio sections">
             ${createTopNavigation(artist.id, activeSection)}
           </nav>
@@ -542,7 +544,7 @@ function renderAtomTemplateLayout({
 
         <div class="container portfolio-site__atom-hero">
           <div class="portfolio-site__atom-identity animate-scale-in">
-            <span class="portfolio-site__eyebrow">Atom 1.0</span>
+            <span class="portfolio-site__eyebrow">${atomTemplateLabel}</span>
             <h1>${artist.artist_name}</h1>
             ${createBioPreviewMarkup(artist, 200, 'portfolio-site__bio-preview portfolio-site__bio-preview--hero')}
             <div class="portfolio-site__social">
