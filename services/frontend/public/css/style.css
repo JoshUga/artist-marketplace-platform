@@ -2152,15 +2152,17 @@ img {
   border-radius: 12px;
   gap: 10px;
   padding: 12px;
-}
-
-.workspace-design__template-card:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--primary-color) 80%, #fff 12%);
-  outline-offset: 2px;
+  cursor: default;
 }
 
 .workspace-design__template-frame {
   pointer-events: none;
+}
+
+.workspace-design__template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .workspace-design__template-activate {

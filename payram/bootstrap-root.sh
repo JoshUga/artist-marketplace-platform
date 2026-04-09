@@ -99,8 +99,14 @@ else
   echo "[payram-bootstrap] SMTP config already exists"
 fi
 
+# Extract first "id" value from Payram JSON payloads.
+# Expected shape includes objects/arrays with an "id" field (quoted or numeric).
 extract_first_id() {
-  printf '%s' "$1" | sed -n 's/.*"id":[[:space:]]*"\{0,1\}\([^",}]*\)".*/\1/p' | head -n 1
+  printf '%s' "$1" | sed -nE 's/.*"id":[[:space:]]*"?([^",:}]+)"?.*/\1/p' | head -n 1
+}
+
+json_escape() {
+  printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
 external_platform_id=""
@@ -166,7 +172,9 @@ wallets_compact="$(printf '%s' "$wallets_response" | tr -d '\n\r\t ')"
 
 wallet_exists() {
   wallet_name="$1"
-  printf '%s' "$wallets_compact" | grep -Fqi "\"name\":\"${wallet_name}\""
+  escaped_wallet_name="$(json_escape "$wallet_name")"
+  wallet_name_fragment="$(printf '"name":"%s"' "$escaped_wallet_name")"
+  printf '%s' "$wallets_compact" | grep -Fqi "$wallet_name_fragment"
 }
 
 create_wallet_request() {
@@ -189,6 +197,7 @@ create_wallet_request() {
 ensure_wallet() {
   wallet_name="$1"
   wallet_kind="$2"
+  escaped_wallet_name="$(json_escape "$wallet_name")"
   wallet_created=false
 
   if wallet_exists "$wallet_name"; then
@@ -199,9 +208,9 @@ ensure_wallet() {
   echo "[payram-bootstrap] Creating ${wallet_kind} wallet (${wallet_name}) on ${EVM_NETWORK}"
 
   if [ -n "$external_platform_id" ]; then
-    payload_with_platform_type=$(printf '{"name":"%s","type":"%s","network":"%s","external_platform_id":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
-    payload_with_platform_wallet_type=$(printf '{"name":"%s","wallet_type":"%s","network":"%s","external_platform_id":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
-    payload_with_platform_camel=$(printf '{"name":"%s","walletType":"%s","network":"%s","externalPlatformId":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
+    payload_with_platform_type=$(printf '{"name":"%s","type":"%s","network":"%s","external_platform_id":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
+    payload_with_platform_wallet_type=$(printf '{"name":"%s","wallet_type":"%s","network":"%s","external_platform_id":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
+    payload_with_platform_camel=$(printf '{"name":"%s","walletType":"%s","network":"%s","externalPlatformId":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK" "$external_platform_id")
 
     if create_wallet_request "$payload_with_platform_type" \
       || create_wallet_request "$payload_with_platform_wallet_type" \
@@ -211,9 +220,9 @@ ensure_wallet() {
   fi
 
   if [ "$wallet_created" != "true" ]; then
-    payload_type=$(printf '{"name":"%s","type":"%s","network":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK")
-    payload_wallet_type=$(printf '{"name":"%s","wallet_type":"%s","network":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK")
-    payload_camel=$(printf '{"name":"%s","walletType":"%s","network":"%s"}' "$wallet_name" "$wallet_kind" "$EVM_NETWORK")
+    payload_type=$(printf '{"name":"%s","type":"%s","network":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK")
+    payload_wallet_type=$(printf '{"name":"%s","wallet_type":"%s","network":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK")
+    payload_camel=$(printf '{"name":"%s","walletType":"%s","network":"%s"}' "$escaped_wallet_name" "$wallet_kind" "$EVM_NETWORK")
 
     if create_wallet_request "$payload_type" \
       || create_wallet_request "$payload_wallet_type" \
@@ -232,7 +241,7 @@ ensure_wallet() {
     exit 1
   fi
 
-  echo "[payram-bootstrap] Warning: could not auto-create ${wallet_kind} wallet (${wallet_name}); please verify Payram wallet API settings."
+  echo "[payram-bootstrap] Warning: could not auto-create ${wallet_kind} wallet (${wallet_name}); verify PAYRAM_WALLET_LIST_PATH/PAYRAM_WALLET_CREATE_PATH, access token permissions, and EVM network naming."
   return 0
 }
 

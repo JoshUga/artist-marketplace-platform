@@ -222,16 +222,21 @@ export function renderAdminPage() {
 
               <div class="workspace-design__template-gallery" id="design-template-gallery">
                 ${TEMPLATE_OPTIONS.map((option) => `
-                  <article class="workspace-design__template-card" data-template-option="${option.key}" role="button" tabindex="0" aria-label="Preview ${option.label}">
+                  <div class="workspace-design__template-card" data-template-option="${option.key}">
                     <span class="workspace-design__template-frame-wrap">
                       <iframe class="workspace-design__template-frame" data-template-frame="${option.key}" title="${option.label} preview" loading="lazy"></iframe>
                     </span>
                     <strong>${option.label}</strong>
                     <small>${option.blurb}</small>
-                    <button type="button" class="btn btn--outline btn--sm workspace-design__template-activate" data-template-activate="${option.key}">
-                      Activate
-                    </button>
-                  </article>
+                    <div class="workspace-design__template-actions">
+                      <button type="button" class="btn btn--ghost btn--sm" data-template-preview="${option.key}">
+                        Preview
+                      </button>
+                      <button type="button" class="btn btn--outline btn--sm workspace-design__template-activate" data-template-activate="${option.key}">
+                        Activate
+                      </button>
+                    </div>
+                  </div>
                 `).join('')}
               </div>
 
@@ -466,32 +471,25 @@ export function renderAdminPage() {
   designTemplateGallery?.addEventListener('click', (event) => {
     const activateButton = event.target.closest('[data-template-activate]');
     if (activateButton && designTemplateInput) {
-      const templateKey = normalizeTemplateKey(activateButton.getAttribute('data-template-activate'));
-      designTemplateInput.value = templateKey;
-      renderDesignPreview();
       if (!artistProfile?.id) {
         showToast('Create your artist profile before activating a template.', 'info');
         activatePanel('profile');
         return;
       }
+      const templateKey = normalizeTemplateKey(activateButton.getAttribute('data-template-activate'));
+      designTemplateInput.value = templateKey;
+      renderDesignPreview();
       designForm?.requestSubmit();
       return;
     }
 
-    const templateCard = event.target.closest('[data-template-option]');
-    if (!templateCard || !designTemplateInput) return;
-    designTemplateInput.value = normalizeTemplateKey(templateCard.getAttribute('data-template-option'));
-    renderDesignPreview();
-  });
-
-  designTemplateGallery?.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    if (event.target.closest('[data-template-activate]')) return;
-    const templateCard = event.target.closest('[data-template-option]');
-    if (!templateCard || !designTemplateInput) return;
-    event.preventDefault();
-    designTemplateInput.value = normalizeTemplateKey(templateCard.getAttribute('data-template-option'));
-    renderDesignPreview();
+    const previewButton = event.target.closest('[data-template-preview]');
+    if (previewButton && designTemplateInput) {
+      const templateKey = normalizeTemplateKey(previewButton.getAttribute('data-template-preview'));
+      designTemplateInput.value = templateKey;
+      renderDesignPreview();
+      return;
+    }
   });
 
   const closeDrawer = () => {
