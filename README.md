@@ -19,6 +19,18 @@ A comprehensive microservices-based online marketplace connecting artists with b
   - `PAYRAM_ROOT_EMAIL`
   - `PAYRAM_ROOT_PASSWORD`
 
+### Payram EVM wallet auto-bootstrap
+
+- `payram-root-init` now attempts to auto-create EVM **master** and **cold** wallets so manual wallet connection steps are no longer required in normal setup.
+- Wallet bootstrap defaults (override before `docker compose up` when needed):
+  - `PAYRAM_AUTO_CREATE_EVM_WALLETS=true`
+  - `PAYRAM_EVM_NETWORK=EVM`
+  - `PAYRAM_MASTER_WALLET_NAME=EVM Master Wallet`
+  - `PAYRAM_COLD_WALLET_NAME=EVM Cold Wallet`
+  - `PAYRAM_WALLET_LIST_PATH=/api/v1/wallets`
+  - `PAYRAM_WALLET_CREATE_PATH=/api/v1/wallets`
+  - `PAYRAM_REQUIRE_EVM_WALLETS=false` (set `true` to fail bootstrap if wallet creation is not successful)
+
 ### Payram dashboard access
 
 - Open dashboard at `http://localhost:8081`.

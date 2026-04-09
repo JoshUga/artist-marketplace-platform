@@ -216,19 +216,22 @@ export function renderAdminPage() {
                 <select id="design-template" class="form-input">
                   ${TEMPLATE_OPTIONS.map((option) => `<option value="${option.key}">${option.label}</option>`).join('')}
                 </select>
-                <p class="workspace-design__template-note">Each card below loads your real portfolio in that template.</p>
+                <p class="workspace-design__template-note">Click a card to preview it, then use Activate to make it live instantly.</p>
                 <p class="workspace-design__template-note" id="design-current-template">Current live template: Editorial Hero</p>
               </div>
 
               <div class="workspace-design__template-gallery" id="design-template-gallery">
                 ${TEMPLATE_OPTIONS.map((option) => `
-                  <button type="button" class="workspace-design__template-card" data-template-option="${option.key}">
+                  <article class="workspace-design__template-card" data-template-option="${option.key}" role="button" tabindex="0" aria-label="Preview ${option.label}">
                     <span class="workspace-design__template-frame-wrap">
                       <iframe class="workspace-design__template-frame" data-template-frame="${option.key}" title="${option.label} preview" loading="lazy"></iframe>
                     </span>
                     <strong>${option.label}</strong>
                     <small>${option.blurb}</small>
-                  </button>
+                    <button type="button" class="btn btn--outline btn--sm workspace-design__template-activate" data-template-activate="${option.key}">
+                      Activate
+                    </button>
+                  </article>
                 `).join('')}
               </div>
 
@@ -461,8 +464,32 @@ export function renderAdminPage() {
   });
 
   designTemplateGallery?.addEventListener('click', (event) => {
+    const activateButton = event.target.closest('[data-template-activate]');
+    if (activateButton && designTemplateInput) {
+      const templateKey = normalizeTemplateKey(activateButton.getAttribute('data-template-activate'));
+      designTemplateInput.value = templateKey;
+      renderDesignPreview();
+      if (!artistProfile?.id) {
+        showToast('Create your artist profile before activating a template.', 'info');
+        activatePanel('profile');
+        return;
+      }
+      designForm?.requestSubmit();
+      return;
+    }
+
     const templateCard = event.target.closest('[data-template-option]');
     if (!templateCard || !designTemplateInput) return;
+    designTemplateInput.value = normalizeTemplateKey(templateCard.getAttribute('data-template-option'));
+    renderDesignPreview();
+  });
+
+  designTemplateGallery?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target.closest('[data-template-activate]')) return;
+    const templateCard = event.target.closest('[data-template-option]');
+    if (!templateCard || !designTemplateInput) return;
+    event.preventDefault();
     designTemplateInput.value = normalizeTemplateKey(templateCard.getAttribute('data-template-option'));
     renderDesignPreview();
   });
