@@ -24,32 +24,38 @@ export function renderAdminPage() {
     <div class="workspace">
       <aside class="workspace__sidebar" id="workspace-sidebar">
         <div class="workspace__brand">
-          <i class="bi bi-palette2"></i>
+          <span class="workspace__brand-mark" aria-hidden="true"><i class="bi bi-stars"></i></span>
           <div>
-            <strong>Artist Studio</strong>
-            <span>${displayName}</span>
+            <strong>Studio Control</strong>
+            <span>${displayName} Workspace</span>
           </div>
         </div>
+        <article class="workspace__sidebar-note">
+          <p class="workspace__eyebrow">Today</p>
+          <h3>Publish your next piece</h3>
+          <p>Keep your profile fresh, rotate featured works, and respond to collector messages faster.</p>
+        </article>
         <nav class="workspace__nav" id="workspace-nav">
-          <button class="workspace__nav-item is-active" data-panel-target="overview"><i class="bi bi-grid"></i> Overview</button>
-          <button class="workspace__nav-item" data-panel-target="analytics"><i class="bi bi-graph-up-arrow"></i> Analytics</button>
-          <button class="workspace__nav-item" data-panel-target="profile"><i class="bi bi-person-vcard"></i> Profile</button>
-          <button class="workspace__nav-item" data-panel-target="design"><i class="bi bi-bezier2"></i> Design</button>
-          <button class="workspace__nav-item" data-panel-target="content"><i class="bi bi-collection"></i> Content</button>
-          <button class="workspace__nav-item" data-panel-target="inbox"><i class="bi bi-chat-left-text"></i> Buyer Inbox</button>
+          <button class="workspace__nav-item is-active" data-panel-target="overview"><i class="bi bi-grid-1x2-fill"></i> Overview</button>
+          <button class="workspace__nav-item" data-panel-target="analytics"><i class="bi bi-bar-chart-line-fill"></i> Analytics</button>
+          <button class="workspace__nav-item" data-panel-target="profile"><i class="bi bi-person-vcard-fill"></i> Profile</button>
+          <button class="workspace__nav-item" data-panel-target="design"><i class="bi bi-vector-pen"></i> Design</button>
+          <button class="workspace__nav-item" data-panel-target="content"><i class="bi bi-collection-fill"></i> Content</button>
+          <button class="workspace__nav-item" data-panel-target="inbox"><i class="bi bi-chat-left-quote-fill"></i> Buyer Inbox</button>
         </nav>
       </aside>
 
       <main class="workspace__main">
-        <header class="workspace__header">
+        <header class="workspace__hero">
           <button class="workspace__menu-btn" id="workspace-menu-btn" aria-label="Open menu">
             <i class="bi bi-list"></i>
           </button>
-          <div>
-            <p class="workspace__eyebrow">Dashboard</p>
+          <div class="workspace__hero-copy">
+            <p class="workspace__eyebrow">Artist Dashboard</p>
             <h1 class="workspace__title">Welcome back, ${displayName}</h1>
+            <p class="workspace__hero-text">Run your portfolio like a studio publication: update profile, pick a template, and launch new drops from one place.</p>
           </div>
-          <div style="display: inline-flex; gap: var(--spacing-sm); flex-wrap: wrap;">
+          <div class="workspace__hero-actions">
             <button class="btn btn--outline workspace__header-btn" id="workspace-edit-profile-btn">
               <i class="bi bi-pencil-square"></i> Edit Profile
             </button>
@@ -64,16 +70,29 @@ export function renderAdminPage() {
         </header>
 
         <section class="workspace__panel is-active" data-panel="overview">
+          <article class="workspace__overview-lead">
+            <div>
+              <p class="workspace__eyebrow">Studio Snapshot</p>
+              <h3>Everything live in your artist site updates from this dashboard.</h3>
+              <p>Use this control room to tune your profile story, curate featured content, and switch portfolio templates without touching code.</p>
+            </div>
+            <div class="workspace__overview-pills">
+              <span><i class="bi bi-lightning-charge-fill"></i> Faster publishing</span>
+              <span><i class="bi bi-eye-fill"></i> Live previews</span>
+              <span><i class="bi bi-phone-fill"></i> Mobile-ready</span>
+            </div>
+          </article>
+
           <div class="workspace__stats">
             <article class="workspace__stat-card">
               <span>Portfolio Items</span>
               <strong id="overview-portfolio-items">--</strong>
-              <small>Products published to your marketplace</small>
+              <small>Published pieces in your public portfolio</small>
             </article>
             <article class="workspace__stat-card">
               <span>Profile Views</span>
               <strong id="overview-profile-views">--</strong>
-              <small>Total product page views</small>
+              <small>Total portfolio traffic across your pieces</small>
             </article>
             <article class="workspace__stat-card">
               <span>Private Buyers</span>
@@ -83,12 +102,12 @@ export function renderAdminPage() {
           </div>
           <div class="workspace__cards-grid">
             <article class="workspace__card">
-              <h3>Upcoming Releases</h3>
-              <p>Schedule limited drops and pre-release previews for invited collectors.</p>
+              <h3>What to do next</h3>
+              <p>Open Profile to tighten your bio, then Design to apply a stronger template identity before your next release.</p>
             </article>
             <article class="workspace__card">
-              <h3>Commission Queue</h3>
-              <p>5 commission requests are waiting for review with budget and timeline notes.</p>
+              <h3>Collector readiness</h3>
+              <p>Keep Buyer Inbox active and maintain at least 3 published works so collectors can evaluate your range quickly.</p>
             </article>
           </div>
         </section>
